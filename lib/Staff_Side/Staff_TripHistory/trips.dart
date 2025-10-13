@@ -1,0 +1,173 @@
+// ignore_for_file: must_be_immutable
+
+import 'package:flutter/material.dart';
+
+class Trips extends StatefulWidget {
+  const Trips({super.key});
+
+  @override
+  State<Trips> createState() => _TripsState();
+}
+
+class _TripsState extends State<Trips> {
+  List TripDates = [
+    // ["December 20, 2025", "9:00 PM"],
+    // ["December 19, 2025", "8:45 PM"],
+    // ["December 18, 2025", "6:30 AM"],
+    // ["December 17, 2025", "2:15 PM"],
+    // ["December 16, 2025", "7:50 PM"],
+    // ["December 15, 2025", "5:10 PM"],
+    // ["December 14, 2025", "8:00 AM"],
+    // ["December 13, 2025", "9:35 PM"],
+    // ["December 12, 2025", "10:05 PM"],
+    // ["December 11, 2025", "1:25 PM"],
+    // ["December 10, 2025", "11:40 AM"],
+    // ["December 9, 2025", "4:10 PM"],
+    // ["December 8, 2025", "7:55 PM"],
+    // ["December 7, 2025", "6:15 PM"],
+    // ["December 6, 2025", "9:25 AM"],
+    // ["December 5, 2025", "8:45 AM"],
+    // ["December 4, 2025", "10:30 PM"],
+    // ["December 3, 2025", "3:20 PM"],
+    // ["December 2, 2025", "2:50 PM"],
+    // ["December 1, 2025", "12:00 PM"],
+    // ["November 30, 2025", "9:15 PM"],
+    // ["November 29, 2025", "6:45 PM"],
+    // ["November 28, 2025", "4:30 PM"],
+    // ["November 27, 2025", "10:15 AM"],
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Color(0xFFFFFFFF),
+
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: Column(
+                children: [
+                  TripDates.isEmpty
+                      ? Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Center(
+                            child: Text(
+                              'Nothing to Show Yet',
+                              style: TextStyle(fontSize: 15),
+                            ),
+                          ),
+                        )
+                      : Table(
+                          border: TableBorder.symmetric(
+                            inside: BorderSide(color: Colors.transparent),
+                            outside: BorderSide(color: Colors.transparent),
+                          ),
+                          columnWidths: const {
+                            0: FlexColumnWidth(3), // "Date" column (narrower)
+                            1: FlexColumnWidth(1.1), // "Time" column (wider)
+                          },
+                          children: [
+                            // Header Row
+                            const TableRow(
+                              children: [
+                                Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 10),
+                                  child: Text(
+                                    'Date',
+                                    textAlign: TextAlign.left,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 10),
+                                  child: Text(
+                                    'Time',
+                                    textAlign: TextAlign.left,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            // Data Rows
+                            for (var row in TripDates)
+                              TableRow(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    child: Text(
+                                      row[0],
+                                      textAlign: TextAlign.left,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    child: Text(
+                                      row[1],
+                                      textAlign: TextAlign.left,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+
+                  SizedBox(height: 60),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CustomClipPath extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    double w = size.width;
+    double h = size.height;
+
+    final path = Path();
+
+    // (0,0) 1. Point
+    path.lineTo(0, h - 50); //line 2
+    path.quadraticBezierTo(
+      w * 0.5, // 3 Point
+      h, // 3 Point
+      w, // 4 Point
+      h - 50, // 4 Point
+    ); // 4 Point
+    path.lineTo(w, 0); // 5 Point
+    path.close();
+
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) {
+    return true;
+  }
+}

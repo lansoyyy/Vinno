@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:smart_cb_1/IntroAndRegistration/account_for.dart';
 import 'package:smart_cb_1/util/background_img.dart';
 
 class InitialSetup extends StatefulWidget {
@@ -118,10 +119,9 @@ class _InitialSetupState extends State<InitialSetup> {
                 ),
 
                 onPressed: () {
-                  Navigator.pushNamedAndRemoveUntil(
+                  Navigator.push(
                     context,
-                    "/mobile_num",
-                    (route) => false, // this removes all previous routes
+                    MaterialPageRoute(builder: (context) => AccountFor()),
                   );
                 },
 
