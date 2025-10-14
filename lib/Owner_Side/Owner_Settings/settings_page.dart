@@ -20,7 +20,6 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color(0xFFF2F2F2),
-
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -39,7 +38,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     height: 140,
                   ),
                 ),
-
                 Row(
                   children: [
                     Padding(
@@ -60,9 +58,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               color: Colors.white,
                             ),
                           ),
-
                           SizedBox(width: 20),
-
                           Text(
                             'Settings',
                             textAlign: TextAlign.center,
@@ -79,7 +75,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ],
             ),
-
             Container(
               height: MediaQuery.of(context).size.height * .8,
               padding: const EdgeInsets.only(
@@ -113,16 +108,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             20,
                           ), // Match button shape
                         ),
-
                         child: GestureDetector(
                           onTap: () {
-                            // Navigator.pushReplacement(
-                            //   context,
-                            //   MaterialPageRoute(
-                            //     builder: (context) =>
-                            //         const CBConnectionSuccess(), // Replace with your target page
-                            //   ),
-                            // );
+                            Navigator.pushNamed(context, '/edit_profile');
                           },
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
@@ -142,7 +130,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                   size: 50,
                                 ),
                               ),
-
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -158,7 +145,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                   ),
                                 ],
                               ),
-
                               Icon(
                                 Icons.arrow_forward_ios,
                                 color: Colors.black,
@@ -191,16 +177,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             20,
                           ), // Match button shape
                         ),
-
                         child: GestureDetector(
                           onTap: () {
-                            // Navigator.pushReplacement(
-                            //   context,
-                            //   MaterialPageRoute(
-                            //     builder: (context) =>
-                            //         const CBConnectionSuccess(), // Replace with your target page
-                            //   ),
-                            // );
+                            Navigator.pushNamed(context, '/change_password');
                           },
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
@@ -220,7 +199,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                   size: 50,
                                 ),
                               ),
-
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -236,7 +214,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                   ),
                                 ],
                               ),
-
                               Icon(
                                 Icons.arrow_forward_ios,
                                 color: Colors.black,
@@ -269,7 +246,6 @@ class _SettingsPageState extends State<SettingsPage> {
                             20,
                           ), // Match button shape
                         ),
-
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -288,7 +264,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                 size: 50,
                               ),
                             ),
-
                             Padding(
                               padding: const EdgeInsets.only(left: 10),
                               child: Row(
@@ -303,12 +278,10 @@ class _SettingsPageState extends State<SettingsPage> {
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
-
                                   SizedBox(
                                     width:
                                         MediaQuery.of(context).size.width * 0.1,
                                   ),
-
                                   Switch(
                                     value: LightMode,
                                     onChanged: (value) => buttonClick(value),
@@ -333,7 +306,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ],
                   ),
-
                   Column(
                     children: [
                       // Logout
@@ -370,14 +342,12 @@ class _SettingsPageState extends State<SettingsPage> {
                               backgroundColor: MaterialStateProperty.all<Color>(
                                 Color(0xFF2ECC71),
                               ),
-                              shape:
-                                  MaterialStateProperty.all<
-                                    RoundedRectangleBorder
-                                  >(
-                                    RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
+                              shape: MaterialStateProperty.all<
+                                  RoundedRectangleBorder>(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             ),
                             child: Text(
                               'Log Out',

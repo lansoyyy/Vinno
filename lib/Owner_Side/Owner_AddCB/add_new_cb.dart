@@ -54,7 +54,6 @@ class _AddNewCbState extends State<AddNewCb> {
                           Navigator.pushNamed(context, '/cblist');
                         },
                       ),
-
                       Align(
                         alignment: Alignment.center,
                         child: Text(
@@ -68,7 +67,6 @@ class _AddNewCbState extends State<AddNewCb> {
                     ],
                   ),
                 ),
-
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 30),
                   child: Column(
@@ -86,7 +84,6 @@ class _AddNewCbState extends State<AddNewCb> {
                               ),
                             ),
                           ),
-
                           TextField(
                             controller: cbName,
                             decoration: InputDecoration(
@@ -119,7 +116,6 @@ class _AddNewCbState extends State<AddNewCb> {
                               ),
                             ),
                           ),
-
                           TextField(
                             controller: cbID,
                             decoration: InputDecoration(
@@ -152,7 +148,6 @@ class _AddNewCbState extends State<AddNewCb> {
                               ),
                             ),
                           ),
-
                           TextField(
                             controller: ampValue,
                             decoration: InputDecoration(
@@ -168,9 +163,7 @@ class _AddNewCbState extends State<AddNewCb> {
                               enabledBorder: customBorder(color: Colors.grey),
                             ),
                           ),
-
                           SizedBox(height: 5),
-
                           Text(
                             '*Note: The maximum current it can handle is 200 A.',
                             style: TextStyle(
@@ -184,12 +177,11 @@ class _AddNewCbState extends State<AddNewCb> {
                     ],
                   ),
                 ),
-
                 Column(
                   children: [
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/search_connection');
+                        Navigator.pushNamed(context, '/wifi_connection_list');
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green.shade300,
@@ -208,9 +200,7 @@ class _AddNewCbState extends State<AddNewCb> {
                         style: TextStyle(fontSize: 18, color: Colors.black),
                       ),
                     ),
-
                     SizedBox(height: 20),
-
                     ElevatedButton(
                       onPressed: () {
                         Navigator.pushNamed(context, '/cblist');

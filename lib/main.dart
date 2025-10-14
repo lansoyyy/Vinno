@@ -19,12 +19,18 @@ import 'package:smart_cb_1/Owner_Side/Owner_ActivityLogs/activity_log.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_AddCB/add_new_cb.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_AddCB/cb_connection_success.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_AddCB/search_connection.dart';
+import 'package:smart_cb_1/Owner_Side/Owner_AddCB/wifi_connection_list.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_CircuitBreakerOption/bracket_option_page.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_ConnectedDevices/connected_devices.dart';
+import 'package:smart_cb_1/Owner_Side/Owner_ConnectedDevices/admin_staff_registration_step1.dart';
+import 'package:smart_cb_1/Owner_Side/Owner_ConnectedDevices/admin_staff_registration_step2.dart';
+import 'package:smart_cb_1/Owner_Side/Owner_ConnectedDevices/admin_staff_registration_success.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_LandingPage/circuit_breaker_list.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_LandingPage/nav_home.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Navigation/navigation_page.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Settings/settings_page.dart';
+import 'package:smart_cb_1/Owner_Side/Owner_Settings/edit_profile.dart';
+import 'package:smart_cb_1/Owner_Side/Owner_Settings/change_password.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Consumption/consumption_main.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/statistics_menu.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Thresholds/voltage_settings.dart';
@@ -65,12 +71,21 @@ class MyApp extends StatelessWidget {
         '/navigationpage': (context) => NavigationPage(),
         '/cblist': (context) => CircuitBreakerList(),
         '/settingspage': (context) => SettingsPage(),
+        '/edit_profile': (context) => EditProfile(),
+        '/change_password': (context) => ChangePassword(),
         '/addnewcb': (context) => AddNewCb(),
+        '/wifi_connection_list': (context) => WifiConnectionList(),
         '/search_connection': (context) => SearchConnection(),
         '/bracketoption': (context) => BracketOptionPage(),
         '/voltagesetting': (context) => VoltageSettingsPage(),
         '/history': (context) => History(),
         '/connectedDevices': (context) => ConnectedDevices(),
+        '/admin_staff_registration_step1': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          return AdminStaffRegistrationStep1(accountType: args?['accountType'] ?? 'Admin');
+        },
+        '/admin_staff_registration_step2': (context) => AdminStaffRegistrationStep2(),
+        '/admin_staff_registration_success': (context) => AdminStaffRegistrationSuccess(),
         '/nav_history': (context) => NavHistory(),
         '/about': (context) => About(),
         '/nav_home': (context) => NavHome(),

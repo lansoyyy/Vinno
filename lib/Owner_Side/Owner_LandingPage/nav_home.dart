@@ -28,7 +28,6 @@ class _NavHomeState extends State<NavHome> {
                   ),
                 ],
               ),
-
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: Row(
@@ -128,7 +127,6 @@ class _NavHomeState extends State<NavHome> {
             ),
           ),
         ),
-
         GestureDetector(
           onTap: () {
             Navigator.pushNamed(context, '/addnewcb');

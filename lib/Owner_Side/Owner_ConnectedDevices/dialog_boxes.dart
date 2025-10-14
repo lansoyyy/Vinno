@@ -60,7 +60,12 @@ void showNavigateDialog(BuildContext context) {
                     ),
                   ),
                   onPressed: () {
-                    // Navigator.pushNamed(context, '/login');
+                    Navigator.pop(context); // Close dialog first
+                    Navigator.pushNamed(
+                      context,
+                      '/admin_staff_registration_step1',
+                      arguments: {'accountType': 'Admin'},
+                    );
                   },
                 ),
               ),
@@ -70,7 +75,7 @@ void showNavigateDialog(BuildContext context) {
                 child: Text('or', style: TextStyle(fontSize: 18)),
               ),
 
-              // Admin
+              // Staff
               Container(
                 width: double.infinity,
                 height: 60,
@@ -112,7 +117,12 @@ void showNavigateDialog(BuildContext context) {
                     ),
                   ),
                   onPressed: () {
-                    // Navigator.pushNamed(context, '/login');
+                    Navigator.pop(context); // Close dialog first
+                    Navigator.pushNamed(
+                      context,
+                      '/admin_staff_registration_step1',
+                      arguments: {'accountType': 'Staff'},
+                    );
                   },
                 ),
               ),

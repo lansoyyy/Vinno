@@ -27,15 +27,15 @@ class _LoginPageState extends State<LoginPage> {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      _showMessage("Please fill out all fields.");
-      return;
-    }
+    // if (email.isEmpty || password.isEmpty) {
+    //   _showMessage("Please fill out all fields.");
+    //   return;
+    // }
 
-    if (!email.contains('@')) {
-      _showMessage("Please enter a valid email address.");
-      return;
-    }
+    // if (!email.contains('@')) {
+    //   _showMessage("Please enter a valid email address.");
+    //   return;
+    // }
 
     // TODO: Implement Firebase Auth login
     // For now, navigate to circuit breaker list
