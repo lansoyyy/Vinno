@@ -71,7 +71,7 @@ class _NavHomeState extends State<NavHome> {
                         ),
                       ),
                       onPressed: () {
-                        // Navigator.pushNamed(context, '/cblist');
+                        Navigator.pushNamed(context, '/pin_location');
                       },
                     ),
 

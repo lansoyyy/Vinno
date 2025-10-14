@@ -27,6 +27,8 @@ import 'package:smart_cb_1/Owner_Side/Owner_ConnectedDevices/admin_staff_registr
 import 'package:smart_cb_1/Owner_Side/Owner_ConnectedDevices/admin_staff_registration_success.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_LandingPage/circuit_breaker_list.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_LandingPage/nav_home.dart';
+import 'package:smart_cb_1/Owner_Side/Owner_Location/geolocation_screen.dart';
+import 'package:smart_cb_1/Owner_Side/Owner_Location/pin_location_screen.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Navigation/navigation_page.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Settings/settings_page.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Settings/edit_profile.dart';
@@ -89,6 +91,8 @@ class MyApp extends StatelessWidget {
         '/nav_history': (context) => NavHistory(),
         '/about': (context) => About(),
         '/nav_home': (context) => NavHome(),
+        '/geolocation': (context) => GeolocationScreen(),
+        '/pin_location': (context) => PinLocationScreen(),
         '/cbsuccess': (context) => CBConnectionSuccess(),
         '/statistic_menu': (context) => StatisticsMenu(),
         '/consumption': (context) => ConsumptionMain(),
