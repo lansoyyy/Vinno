@@ -8,6 +8,9 @@ import 'package:smart_cb_1/IntroAndRegistration/pin_success.dart';
 import 'package:smart_cb_1/IntroAndRegistration/privacy_policy.dart';
 import 'package:smart_cb_1/IntroAndRegistration/registration.dart';
 import 'package:smart_cb_1/IntroAndRegistration/terms_policy.dart';
+import 'package:smart_cb_1/IntroAndRegistration/Owner/owner_registration_step1.dart';
+import 'package:smart_cb_1/IntroAndRegistration/Owner/owner_registration_step2.dart';
+import 'package:smart_cb_1/IntroAndRegistration/Owner/owner_registration_success.dart';
 import 'package:smart_cb_1/Login_ForgotPass/ForgotPassword/forgot_change_pin.dart';
 import 'package:smart_cb_1/Login_ForgotPass/ForgotPassword/forgot_pin_otp.dart';
 import 'package:smart_cb_1/Login_ForgotPass/Login/login.dart';
@@ -48,6 +51,9 @@ class MyApp extends StatelessWidget {
         '/privacy': (context) => PrivacyPage(),
         '/terms': (context) => TermsPage(),
         '/registration': (context) => RegistrationPage(),
+        '/owner_registration_step1': (context) => OwnerRegistrationStep1(),
+        '/owner_registration_step2': (context) => OwnerRegistrationStep2(),
+        '/owner_registration_success': (context) => OwnerRegistrationSuccess(),
         '/intro_screen': (context) => IntroScreen(),
         '/login': (context) => LoginPage(),
 

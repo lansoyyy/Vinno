@@ -81,14 +81,12 @@ class AccountForState extends State<AccountFor> {
                             backgroundColor: MaterialStateProperty.all<Color>(
                               Colors.white,
                             ),
-                            shape:
-                                MaterialStateProperty.all<
-                                  RoundedRectangleBorder
-                                >(
-                                  RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
+                            shape: MaterialStateProperty.all<
+                                RoundedRectangleBorder>(
+                              RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
                           child: Text(
                             'Owner',
@@ -100,13 +98,12 @@ class AccountForState extends State<AccountFor> {
                             ),
                           ),
                           onPressed: () {
-                            // Navigator.pushNamed(context, '/login');
+                            Navigator.pushNamed(
+                                context, '/owner_registration_step1');
                           },
                         ),
                       ),
-
                       SizedBox(height: 15),
-
                       Container(
                         height: 60,
                         width: MediaQuery.of(context).size.width * 0.7,
@@ -134,14 +131,12 @@ class AccountForState extends State<AccountFor> {
                             backgroundColor: MaterialStateProperty.all<Color>(
                               Colors.white,
                             ),
-                            shape:
-                                MaterialStateProperty.all<
-                                  RoundedRectangleBorder
-                                >(
-                                  RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
+                            shape: MaterialStateProperty.all<
+                                RoundedRectangleBorder>(
+                              RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
                           child: Text(
                             'Admin',
@@ -160,9 +155,7 @@ class AccountForState extends State<AccountFor> {
                           },
                         ),
                       ),
-
                       SizedBox(height: 15),
-
                       Container(
                         height: 60,
                         width: MediaQuery.of(context).size.width * 0.7,
@@ -190,14 +183,12 @@ class AccountForState extends State<AccountFor> {
                             backgroundColor: MaterialStateProperty.all<Color>(
                               Colors.white,
                             ),
-                            shape:
-                                MaterialStateProperty.all<
-                                  RoundedRectangleBorder
-                                >(
-                                  RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
+                            shape: MaterialStateProperty.all<
+                                RoundedRectangleBorder>(
+                              RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
                           child: Text(
                             'Staff',
@@ -249,7 +240,6 @@ class AccountForState extends State<AccountFor> {
                         ),
                       ),
                       SizedBox(height: 40),
-
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -260,7 +250,6 @@ class AccountForState extends State<AccountFor> {
                               fontSize: 16,
                             ),
                           ),
-
                           GestureDetector(
                             onTap: () {
                               Navigator.push(
