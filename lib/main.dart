@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_cb_1/IntroAndRegistration/initial_setup.dart';
 import 'package:smart_cb_1/IntroAndRegistration/intro_screen.dart';
@@ -37,8 +38,15 @@ import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Consumption/consumption_m
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/statistics_menu.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Thresholds/voltage_settings.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_TripHistory/nav_history.dart';
+import 'package:smart_cb_1/firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    name: 'vinno-52914',
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const MyApp());
 }
 
@@ -83,11 +91,15 @@ class MyApp extends StatelessWidget {
         '/history': (context) => History(),
         '/connectedDevices': (context) => ConnectedDevices(),
         '/admin_staff_registration_step1': (context) {
-          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-          return AdminStaffRegistrationStep1(accountType: args?['accountType'] ?? 'Admin');
+          final args = ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>?;
+          return AdminStaffRegistrationStep1(
+              accountType: args?['accountType'] ?? 'Admin');
         },
-        '/admin_staff_registration_step2': (context) => AdminStaffRegistrationStep2(),
-        '/admin_staff_registration_success': (context) => AdminStaffRegistrationSuccess(),
+        '/admin_staff_registration_step2': (context) =>
+            AdminStaffRegistrationStep2(),
+        '/admin_staff_registration_success': (context) =>
+            AdminStaffRegistrationSuccess(),
         '/nav_history': (context) => NavHistory(),
         '/about': (context) => About(),
         '/nav_home': (context) => NavHome(),
