@@ -81,7 +81,6 @@ class _RegistrationScreenState extends State<RegistrationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
-
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -103,7 +102,6 @@ class _RegistrationScreenState extends State<RegistrationPage> {
                         Navigator.pushNamed(context, '/accountactivity');
                       },
                     ),
-
                     Align(
                       alignment: Alignment.center,
                       child: Text(
@@ -117,7 +115,6 @@ class _RegistrationScreenState extends State<RegistrationPage> {
                   ],
                 ),
               ),
-
               SizedBox(height: 8),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 30),
@@ -228,7 +225,6 @@ class _RegistrationScreenState extends State<RegistrationPage> {
 
                     DropdownButtonFormField<String>(
                       value: selectedValue,
-
                       items: items.map((String item) {
                         return DropdownMenuItem<String>(
                           value: item,

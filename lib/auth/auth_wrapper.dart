@@ -44,44 +44,40 @@ class _AuthWrapperState extends State<AuthWrapper> {
             });
 
             // Navigate based on account type
-            if (accountType == 'Owner') {
-              Navigator.of(context).pushNamedAndRemoveUntil(
-                '/cblist',
-                (route) => false,
-              );
-            } else if (accountType == 'Admin') {
-              // Navigate to admin page when implemented
-              Navigator.of(context).pushNamedAndRemoveUntil(
-                '/cblist', // Temporary route, update when admin page is ready
-                (route) => false,
-              );
-            } else if (accountType == 'Staff') {
-              // Navigate to staff page when implemented
-              Navigator.of(context).pushNamedAndRemoveUntil(
-                '/cblist', // Temporary route, update when staff page is ready
-                (route) => false,
-              );
+            if (data['isActive']) {
+              if (accountType == 'Owner') {
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/cblist',
+                  (route) => false,
+                );
+              } else if (accountType == 'Admin') {
+                // Navigate to admin page when implemented
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/cblist', // Temporary route, update when admin page is ready
+                  (route) => false,
+                );
+              } else if (accountType == 'Staff') {
+                // Navigate to staff page when implemented
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/cblist', // Temporary route, update when staff page is ready
+                  (route) => false,
+                );
+              }
             } else {
-              // Default to owner navigation
-              Navigator.of(context).pushNamedAndRemoveUntil(
-                '/navigationpage',
-                (route) => false,
-              );
+              _showMessage("User is not active.");
             }
           } else {
-            // User data not found, but user is authenticated
-            // Navigate to default page
-            setState(() {
-              _isLoading = false;
-            });
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              '/cblist',
-              (route) => false,
-            );
+            _showMessage("User not found.");
           }
         }
       }
     });
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override

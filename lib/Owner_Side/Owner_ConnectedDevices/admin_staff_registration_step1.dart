@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:smart_cb_1/services/firebase_auth_service.dart';
 
 class AdminStaffRegistrationStep1 extends StatefulWidget {
   final String accountType; // 'Admin' or 'Staff'
@@ -20,6 +22,8 @@ class _AdminStaffRegistrationStep1State
   final TextEditingController addressController = TextEditingController();
   final TextEditingController mobileController = TextEditingController();
   final TextEditingController birthdayController = TextEditingController();
+
+  final FirebaseAuthService _authService = FirebaseAuthService();
 
   @override
   void dispose() {
@@ -52,17 +56,116 @@ class _AdminStaffRegistrationStep1State
       return;
     }
 
-    // Navigate to step 2 with data
-    Navigator.pushNamed(
-      context,
-      '/admin_staff_registration_step2',
-      arguments: {
-        'accountType': widget.accountType,
-        'name': name,
-        'age': age,
-        'address': address,
-        'mobile': mobile,
-        'birthday': birthday,
+    // Get the current owner's ID
+    User? currentUser = _authService.currentUser;
+    if (currentUser == null) {
+      _showMessage("Owner not authenticated. Please log in again.");
+      return;
+    }
+
+    // Show password confirmation dialog
+    _showPasswordConfirmationDialog(currentUser.uid, currentUser.email!, name,
+        age, address, mobile, birthday);
+  }
+
+  void _showPasswordConfirmationDialog(
+    String ownerId,
+    String ownerEmail,
+    String name,
+    String age,
+    String address,
+    String mobile,
+    String birthday,
+  ) {
+    final TextEditingController passwordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Confirm Your Identity',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'To create a new account, please confirm your password:',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  hintText: "Enter your password",
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                String password = passwordController.text.trim();
+                if (password.isEmpty) {
+                  _showMessage("Please enter your password.");
+                  return;
+                }
+
+                Navigator.of(context).pop();
+
+                // Navigate to step 2 with data
+                Navigator.pushNamed(
+                  context,
+                  '/admin_staff_registration_step2',
+                  arguments: {
+                    'accountType': widget.accountType,
+                    'name': name,
+                    'age': age,
+                    'address': address,
+                    'mobile': mobile,
+                    'birthday': birthday,
+                    'createdBy': ownerId, // Pass the owner's ID
+                    'ownerEmail': ownerEmail, // Pass the owner's email
+                    'ownerPassword': password, // Pass the owner's password
+                  },
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2ECC71),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text('Confirm'),
+            ),
+          ],
+        );
       },
     );
   }

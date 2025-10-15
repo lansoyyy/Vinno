@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:smart_cb_1/services/firebase_auth_service.dart';
 
 // For Adding Accounts
 void showNavigateDialog(BuildContext context) {
@@ -136,6 +139,8 @@ void showNavigateDialog(BuildContext context) {
 
 // For BlockLists
 void showBlockListDialog(BuildContext context) {
+  final FirebaseAuthService _authService = FirebaseAuthService();
+
   showDialog(
     context: context,
     builder: (context) {
@@ -172,38 +177,152 @@ void showBlockListDialog(BuildContext context) {
                 Expanded(
                   child: TabBarView(
                     children: [
-                      // Blocked Users List
-                      ListView.builder(
-                        itemCount: 5,
-                        itemBuilder: (context, index) => ListTile(
-                          title: Text('Admin ${index + 1}'),
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.settings_backup_restore,
-                              color: Colors.blue,
-                            ),
-                            onPressed: () {
-                              // Handle unblock action
+                      // Blocked Admins List
+                      FutureBuilder<QuerySnapshot>(
+                        future: _getBlockedUsers('admins'),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
+
+                          if (snapshot.hasError) {
+                            return Center(
+                                child: Text('Error: ${snapshot.error}'));
+                          }
+
+                          if (!snapshot.hasData ||
+                              snapshot.data!.docs.isEmpty) {
+                            return const Center(
+                                child: Text('No blocked admins'));
+                          }
+
+                          return ListView.builder(
+                            itemCount: snapshot.data!.docs.length,
+                            itemBuilder: (context, index) {
+                              DocumentSnapshot doc = snapshot.data!.docs[index];
+                              Map<String, dynamic> data =
+                                  doc.data() as Map<String, dynamic>;
+                              String name = data['name'] ?? 'Unknown Admin';
+                              String uid = doc.id;
+
+                              return ListTile(
+                                title: Text(name),
+                                trailing: IconButton(
+                                  icon: const Icon(
+                                    Icons.settings_backup_restore,
+                                    color: Colors.blue,
+                                  ),
+                                  onPressed: () async {
+                                    // Handle unblock action
+                                    String? error =
+                                        await _authService.toggleUserStatus(
+                                      uid,
+                                      'Admin',
+                                      true, // Set to active (unblock)
+                                    );
+
+                                    if (error != null) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                            content: Text('Error: $error')),
+                                      );
+                                    } else {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Admin unblocked successfully')),
+                                      );
+                                      Navigator.pop(context); // Close dialog
+                                      // Refresh the connected devices screen
+                                      Navigator.pushReplacementNamed(
+                                        context,
+                                        '/connectedDevices',
+                                      );
+                                    }
+                                  },
+                                ),
+                              );
                             },
-                          ),
-                        ),
+                          );
+                        },
                       ),
 
-                      // Staffs List
-                      ListView.builder(
-                        itemCount: 3,
-                        itemBuilder: (context, index) => ListTile(
-                          title: Text('Staff ${index + 1}'),
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.settings_backup_restore,
-                              color: Colors.blue,
-                            ),
-                            onPressed: () {
-                              // Handle unmute action
+                      // Blocked Staffs List
+                      FutureBuilder<QuerySnapshot>(
+                        future: _getBlockedUsers('staff'),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
+
+                          if (snapshot.hasError) {
+                            return Center(
+                                child: Text('Error: ${snapshot.error}'));
+                          }
+
+                          if (!snapshot.hasData ||
+                              snapshot.data!.docs.isEmpty) {
+                            return const Center(
+                                child: Text('No blocked staff'));
+                          }
+
+                          return ListView.builder(
+                            itemCount: snapshot.data!.docs.length,
+                            itemBuilder: (context, index) {
+                              DocumentSnapshot doc = snapshot.data!.docs[index];
+                              Map<String, dynamic> data =
+                                  doc.data() as Map<String, dynamic>;
+                              String name = data['name'] ?? 'Unknown Staff';
+                              String uid = doc.id;
+
+                              return ListTile(
+                                title: Text(name),
+                                trailing: IconButton(
+                                  icon: const Icon(
+                                    Icons.settings_backup_restore,
+                                    color: Colors.blue,
+                                  ),
+                                  onPressed: () async {
+                                    // Handle unblock action
+                                    String? error =
+                                        await _authService.toggleUserStatus(
+                                      uid,
+                                      'Staff',
+                                      true, // Set to active (unblock)
+                                    );
+
+                                    if (error != null) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                            content: Text('Error: $error')),
+                                      );
+                                    } else {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Staff unblocked successfully')),
+                                      );
+                                      Navigator.pop(context); // Close dialog
+                                      // Refresh the connected devices screen
+                                      Navigator.pushReplacementNamed(
+                                        context,
+                                        '/connectedDevices',
+                                      );
+                                    }
+                                  },
+                                ),
+                              );
                             },
-                          ),
-                        ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -224,4 +343,20 @@ void showBlockListDialog(BuildContext context) {
       );
     },
   );
+}
+
+// Helper function to get blocked users
+Future<QuerySnapshot> _getBlockedUsers(String collection) async {
+  final FirebaseAuthService _authService = FirebaseAuthService();
+  User? currentUser = _authService.currentUser;
+
+  if (currentUser == null) {
+    throw Exception('User not authenticated');
+  }
+
+  return FirebaseFirestore.instance
+      .collection(collection)
+      .where('createdBy', isEqualTo: currentUser.uid)
+      .where('isActive', isEqualTo: false)
+      .get();
 }

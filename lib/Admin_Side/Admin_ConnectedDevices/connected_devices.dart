@@ -64,7 +64,6 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
                   icon: const Icon(Icons.add, color: Colors.black, size: 30),
                   onPressed: () => showNavigateDialog(context),
                 ),
-
                 PopupMenuButton<String>(
                   onSelected: (value) {
                     if (value == 'Blocklists') {
@@ -83,7 +82,6 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
           ),
         ],
       ),
-
       body: SingleChildScrollView(
         child: Container(
           height: MediaQuery.of(context).size.height,
@@ -195,7 +193,12 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
                       padding: EdgeInsets.zero,
                       itemCount: adminList.length,
                       itemBuilder: (context, index) {
-                        return AdminLists(adminName: adminList[index][0]);
+                        return AdminLists(
+                          adminData: adminList[index],
+                          onToggleStatus: () {
+                            // TODO: Implement toggle status logic
+                          },
+                        );
                       },
                     ),
 
@@ -224,7 +227,12 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
                       padding: EdgeInsets.zero,
                       itemCount: staffList.length,
                       itemBuilder: (context, index) {
-                        return StaffList(staffName: staffList[index][0]);
+                        return StaffList(
+                          staffData: staffList[index],
+                          onToggleStatus: () {
+                            // TODO: Implement toggle status logic
+                          },
+                        );
                       },
                     ),
 

@@ -1,7 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:smart_cb_1/services/firebase_auth_service.dart';
 
-class AdminStaffRegistrationSuccess extends StatelessWidget {
+class AdminStaffRegistrationSuccess extends StatefulWidget {
   const AdminStaffRegistrationSuccess({super.key});
+
+  @override
+  State<AdminStaffRegistrationSuccess> createState() =>
+      _AdminStaffRegistrationSuccessState();
+}
+
+class _AdminStaffRegistrationSuccessState
+    extends State<AdminStaffRegistrationSuccess> {
+  final FirebaseAuthService _authService = FirebaseAuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +76,33 @@ class AdminStaffRegistrationSuccess extends StatelessWidget {
 
                 // Go back to Managers Button
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    // Check if the current user is the newly created admin/staff
+                    User? currentUser = _authService.currentUser;
+                    if (currentUser != null) {
+                      // Get user data to check account type
+                      DocumentSnapshot? userData =
+                          await _authService.getUserData(currentUser.uid);
+                      if (userData != null && userData.exists) {
+                        Map<String, dynamic> data =
+                            userData.data() as Map<String, dynamic>;
+                        String accountType = data['accountType'] ?? '';
+
+                        // If current user is Admin or Staff, sign them out
+                        if (accountType == 'Admin' || accountType == 'Staff') {
+                          await _authService.signOut();
+
+                          // Navigate to login page since the owner is not signed in
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/',
+                            (route) => false,
+                          );
+                          return;
+                        }
+                      }
+                    }
+
                     // Navigate back to connected devices/managers page
                     Navigator.pushNamedAndRemoveUntil(
                       context,

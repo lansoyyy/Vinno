@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:smart_cb_1/services/firebase_auth_service.dart';
 
 class AdminStaffRegistrationStep2 extends StatefulWidget {
   const AdminStaffRegistrationStep2({super.key});
@@ -17,7 +19,10 @@ class _AdminStaffRegistrationStep2State
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
   String accountType = '';
+
+  final FirebaseAuthService _authService = FirebaseAuthService();
 
   @override
   void didChangeDependencies() {
@@ -38,7 +43,7 @@ class _AdminStaffRegistrationStep2State
     super.dispose();
   }
 
-  void _onRegister() {
+  void _onRegister() async {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
     String confirmPassword = confirmPasswordController.text.trim();
@@ -63,13 +68,65 @@ class _AdminStaffRegistrationStep2State
       return;
     }
 
-    // TODO: Implement Firebase Auth registration for Admin/Staff
-    // Navigate to success screen
-    Navigator.pushNamed(
-      context,
-      '/admin_staff_registration_success',
-      arguments: {'accountType': accountType},
+    // Get data from previous step
+    final Map<String, dynamic>? args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args == null) {
+      _showMessage("Missing registration information. Please start over.");
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Register with Firebase
+    // Get the current owner's ID before creating the new account
+    // We'll pass it through the arguments to avoid issues with Firebase automatically signing in as the new user
+    String ownerId = args['createdBy'] ?? '';
+
+    if (ownerId.isEmpty) {
+      // Try to get current user as fallback
+      User? currentUser = _authService.currentUser;
+      if (currentUser != null) {
+        ownerId = currentUser.uid;
+      } else {
+        _showMessage("Owner not authenticated. Please log in again.");
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+    }
+
+    String? error = await _authService.registerAdminOrStaff(
+      email: email,
+      password: password,
+      name: args['name'],
+      age: args['age'],
+      address: args['address'],
+      mobile: args['mobile'],
+      birthday: args['birthday'],
+      accountType: accountType,
+      ownerId: ownerId,
+      ownerEmail: args['ownerEmail'] ?? '',
+      ownerPassword: args['ownerPassword'] ?? '',
     );
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (error != null) {
+      _showMessage(error);
+    } else {
+      // Navigate to success screen
+      Navigator.pushNamed(
+        context,
+        '/admin_staff_registration_success',
+        arguments: {'accountType': accountType},
+      );
+    }
   }
 
   void _showMessage(String message) {
@@ -252,28 +309,33 @@ class _AdminStaffRegistrationStep2State
                     ),
 
                     // Register Button
-                    ElevatedButton(
-                      onPressed: _onRegister,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 35,
-                          vertical: 16,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        elevation: 3,
-                      ),
-                      child: const Text(
-                        "REGISTER",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                    _isLoading
+                        ? const CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFF4CAF50)),
+                          )
+                        : ElevatedButton(
+                            onPressed: _onRegister,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4CAF50),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 35,
+                                vertical: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              elevation: 3,
+                            ),
+                            child: const Text(
+                              "REGISTER",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                   ],
                 ),
                 const SizedBox(height: 30),

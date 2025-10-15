@@ -114,6 +114,132 @@ class FirebaseAuthService {
     }
   }
 
+  // Register admin or staff with email and password
+  Future<String?> registerAdminOrStaff({
+    required String email,
+    required String password,
+    required String name,
+    required String age,
+    required String address,
+    required String mobile,
+    required String birthday,
+    required String accountType, // 'Admin' or 'Staff'
+    required String ownerId, // Owner who is creating this account
+    required String ownerEmail, // Owner's email for re-authentication
+    required String ownerPassword, // Owner's password for re-authentication
+  }) async {
+    try {
+      // Get current user (owner) to verify authentication
+      User? owner = _auth.currentUser;
+      if (owner == null) {
+        return 'Owner not authenticated. Please log in again.';
+      }
+
+      // Create user with email and password
+      UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Get the new user ID
+      String uid = userCredential.user!.uid;
+
+      // Determine collection based on account type
+      String collection =
+          accountType.toLowerCase() == 'admin' ? 'admins' : 'staff';
+
+      // Store additional user data in Firestore
+      await _firestore.collection(collection).doc(uid).set({
+        'uid': uid,
+        'name': name,
+        'age': age,
+        'address': address,
+        'mobile': mobile,
+        'birthday': birthday,
+        'email': email,
+        'accountType': accountType,
+        'createdAt': FieldValue.serverTimestamp(),
+        'isActive': true,
+        'createdBy': ownerId, // Owner who created this account
+      });
+
+      // Sign out the newly created user
+      await _auth.signOut();
+
+      // Sign back in as the owner
+      await _auth.signInWithEmailAndPassword(
+        email: ownerEmail,
+        password: ownerPassword,
+      );
+
+      return null; // Success, return null for no error
+    } on FirebaseAuthException catch (e) {
+      if (kDebugMode) {
+        print('Firebase Auth Error: ${e.message}');
+      }
+      return _getErrorMessage(e.code);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error registering $accountType: $e');
+      }
+      return 'An unknown error occurred. Please try again.';
+    }
+  }
+
+  // Block/unblock a user
+  Future<String?> toggleUserStatus(
+      String uid, String accountType, bool isActive) async {
+    try {
+      String collection =
+          accountType.toLowerCase() == 'admin' ? 'admins' : 'staff';
+
+      await _firestore.collection(collection).doc(uid).update({
+        'isActive': isActive,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      return null; // Success
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error updating user status: $e');
+      }
+      return 'Failed to update user status. Please try again.';
+    }
+  }
+
+  // Get all admins for an owner
+  Future<QuerySnapshot> getAdmins(String ownerId) async {
+    try {
+      return await _firestore
+          .collection('admins')
+          .where('createdBy', isEqualTo: ownerId)
+          .orderBy('createdAt', descending: true)
+          .get();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting admins: $e');
+      }
+      rethrow;
+    }
+  }
+
+  // Get all staff for an owner
+  Future<QuerySnapshot> getStaff(String ownerId) async {
+    try {
+      return await _firestore
+          .collection('staff')
+          .where('createdBy', isEqualTo: ownerId)
+          .orderBy('createdAt', descending: true)
+          .get();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting staff: $e');
+      }
+      rethrow;
+    }
+  }
+
   // Get user data from Firestore
   Future<DocumentSnapshot?> getUserData(String uid) async {
     try {

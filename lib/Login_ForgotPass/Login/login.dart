@@ -69,43 +69,42 @@ class _LoginPageState extends State<LoginPage> {
           Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
           String accountType = data['accountType'] ?? 'Owner';
 
-          // Navigate based on account type
-          if (accountType == 'Owner') {
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/cblist',
-              (route) => false,
-            );
-          } else if (accountType == 'Admin') {
-            // Navigate to admin page when implemented
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/cblist', // Temporary route, update when admin page is ready
-              (route) => false,
-            );
-          } else if (accountType == 'Staff') {
-            // Navigate to staff page when implemented
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/cblist', // Temporary route, update when staff page is ready
-              (route) => false,
-            );
+          if (data['isActive']) {
+            // Navigate based on account type
+            if (accountType == 'Owner') {
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/cblist',
+                (route) => false,
+              );
+            } else if (accountType == 'Admin') {
+              // Navigate to admin page when implemented
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/cblist', // Temporary route, update when admin page is ready
+                (route) => false,
+              );
+            } else if (accountType == 'Staff') {
+              // Navigate to staff page when implemented
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/cblist', // Temporary route, update when staff page is ready
+                (route) => false,
+              );
+            } else {
+              // Default to owner navigation
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/navigationpage',
+                (route) => false,
+              );
+            }
           } else {
-            // Default to owner navigation
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/navigationpage',
-              (route) => false,
-            );
+            _showMessage("User is not active.");
           }
-        } else {
-          // User data not found, navigate to default page
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/navigationpage',
-            (route) => false,
-          );
         }
+      } else {
+        _showMessage("User not found.");
       }
     }
   }
