@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:smart_cb_1/services/firebase_auth_service.dart';
 
 class OwnerRegistrationStep2 extends StatefulWidget {
   const OwnerRegistrationStep2({super.key});
@@ -10,10 +11,14 @@ class OwnerRegistrationStep2 extends StatefulWidget {
 class _OwnerRegistrationStep2State extends State<OwnerRegistrationStep2> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
+
+  final FirebaseAuthService _authService = FirebaseAuthService();
 
   @override
   void dispose() {
@@ -23,7 +28,7 @@ class _OwnerRegistrationStep2State extends State<OwnerRegistrationStep2> {
     super.dispose();
   }
 
-  void _onRegister() {
+  void _onRegister() async {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
     String confirmPassword = confirmPasswordController.text.trim();
@@ -48,8 +53,39 @@ class _OwnerRegistrationStep2State extends State<OwnerRegistrationStep2> {
       return;
     }
 
-    // Navigate to success screen
-    Navigator.pushNamed(context, '/owner_registration_success');
+    // Get data from previous step
+    final Map<String, dynamic>? args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args == null) {
+      _showMessage("Missing registration information. Please start over.");
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Register with Firebase
+    String? error = await _authService.registerOwner(
+      email: email,
+      password: password,
+      name: args['name'],
+      age: args['age'],
+      address: args['address'],
+      mobile: args['mobile'],
+      birthday: args['birthday'],
+    );
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (error != null) {
+      _showMessage(error);
+    } else {
+      // Navigate to success screen
+      Navigator.pushNamed(context, '/owner_registration_success');
+    }
   }
 
   void _showMessage(String message) {
@@ -81,7 +117,8 @@ class _OwnerRegistrationStep2State extends State<OwnerRegistrationStep2> {
             children: [
               // Header
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 width: MediaQuery.of(context).size.width,
                 height: 60,
                 child: Stack(
@@ -204,7 +241,8 @@ class _OwnerRegistrationStep2State extends State<OwnerRegistrationStep2> {
                           ),
                           onPressed: () {
                             setState(() {
-                              _obscureConfirmPassword = !_obscureConfirmPassword;
+                              _obscureConfirmPassword =
+                                  !_obscureConfirmPassword;
                             });
                           },
                         ),
@@ -225,28 +263,33 @@ class _OwnerRegistrationStep2State extends State<OwnerRegistrationStep2> {
 
                     // Register Button
                     Center(
-                      child: ElevatedButton(
-                        onPressed: _onRegister,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4CAF50),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 70,
-                            vertical: 16,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          elevation: 3,
-                        ),
-                        child: const Text(
-                          "REGISTER",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF4CAF50)),
+                            )
+                          : ElevatedButton(
+                              onPressed: _onRegister,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF4CAF50),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 70,
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                elevation: 3,
+                              ),
+                              child: const Text(
+                                "REGISTER",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
                     ),
                     const SizedBox(height: 30),
                   ],

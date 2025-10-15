@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:smart_cb_1/services/firebase_auth_service.dart';
 
-class OwnerRegistrationSuccess extends StatelessWidget {
+class OwnerRegistrationSuccess extends StatefulWidget {
   const OwnerRegistrationSuccess({super.key});
+
+  @override
+  State<OwnerRegistrationSuccess> createState() =>
+      _OwnerRegistrationSuccessState();
+}
+
+class _OwnerRegistrationSuccessState extends State<OwnerRegistrationSuccess> {
+  final FirebaseAuthService _authService = FirebaseAuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -64,13 +73,23 @@ class OwnerRegistrationSuccess extends StatelessWidget {
 
                 // Okay Button
                 ElevatedButton(
-                  onPressed: () {
-                    // Navigate to privacy policy or login
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      '/privacy',
-                      (route) => false,
-                    );
+                  onPressed: () async {
+                    // Ensure user is signed in before proceeding
+                    if (_authService.currentUser == null) {
+                      // If user is not signed in (rare case), navigate to login
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/privacy',
+                        (route) => false,
+                      );
+                    } else {
+                      // User is signed in, proceed to privacy policy
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/privacy',
+                        (route) => false,
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:smart_cb_1/services/firebase_auth_service.dart';
 
 class EditProfile extends StatefulWidget {
   const EditProfile({super.key});
@@ -14,16 +17,52 @@ class _EditProfileState extends State<EditProfile> {
   final TextEditingController birthdayController = TextEditingController();
   final TextEditingController contactController = TextEditingController();
 
+  final FirebaseAuthService _authService = FirebaseAuthService();
+  bool _isLoading = false;
+  String? _userId;
+  String _userName = '';
+  String _accountType = 'Owner';
+
   @override
   void initState() {
     super.initState();
-    // TODO: Load user data from Firebase
-    // Mock data for now
-    emailController.text = 'exampleuser@email.com';
-    nameController.text = 'Juan Romeo P. Dela Cruz';
-    ageController.text = '21';
-    birthdayController.text = '07/19/2004';
-    contactController.text = '09245299823';
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    User? currentUser = _authService.currentUser;
+    if (currentUser != null) {
+      _userId = currentUser.uid;
+      DocumentSnapshot? userData =
+          await _authService.getUserData(currentUser.uid);
+
+      if (userData != null && userData.exists) {
+        Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
+
+        setState(() {
+          emailController.text = data['email'] ?? '';
+          nameController.text = data['name'] ?? '';
+          ageController.text = data['age'] ?? '';
+          birthdayController.text = data['birthday'] ?? '';
+          contactController.text = data['mobile'] ?? '';
+          _userName = data['name'] ?? '';
+          _accountType = data['accountType'] ?? 'Owner';
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -36,11 +75,9 @@ class _EditProfileState extends State<EditProfile> {
     super.dispose();
   }
 
-  void _saveProfile() {
-    // TODO: Implement Firebase update
-    // Validate fields
-    if (emailController.text.isEmpty ||
-        nameController.text.isEmpty ||
+  void _saveProfile() async {
+    // Validate fields (excluding email)
+    if (nameController.text.isEmpty ||
         ageController.text.isEmpty ||
         birthdayController.text.isEmpty ||
         contactController.text.isEmpty) {
@@ -50,13 +87,54 @@ class _EditProfileState extends State<EditProfile> {
       return;
     }
 
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile updated successfully')),
-    );
+    // Validate age
+    if (int.tryParse(ageController.text) == null ||
+        int.parse(ageController.text) <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid age')),
+      );
+      return;
+    }
 
-    // Navigate back
-    Navigator.pop(context);
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Update user data in Firestore (excluding email)
+      await FirebaseFirestore.instance
+          .collection('owners')
+          .doc(_userId)
+          .update({
+        'name': nameController.text.trim(),
+        'age': ageController.text.trim(),
+        'birthday': birthdayController.text.trim(),
+        'mobile': contactController.text.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      setState(() {
+        _userName = nameController.text.trim();
+        _isLoading = false;
+      });
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully')),
+      );
+
+      // Navigate back
+      Navigator.pop(context);
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating profile: ${e.toString()}')),
+      );
+    }
   }
 
   OutlineInputBorder customBorder({
@@ -94,7 +172,8 @@ class _EditProfileState extends State<EditProfile> {
               ),
               SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -121,17 +200,27 @@ class _EditProfileState extends State<EditProfile> {
                           ),
                         ],
                       ),
-                      TextButton(
-                        onPressed: _saveProfile,
-                        child: const Text(
-                          'Confirm',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+                      _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : TextButton(
+                              onPressed: _saveProfile,
+                              child: const Text(
+                                'Confirm',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                     ],
                   ),
                 ),
@@ -166,16 +255,28 @@ class _EditProfileState extends State<EditProfile> {
                     const SizedBox(height: 15),
 
                     // Name and Role
-                    const Text(
-                      'Juan Romeo',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Text(
-                      'Owner',
-                      style: TextStyle(
+                    _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF2ECC71)),
+                            ),
+                          )
+                        : Text(
+                            _userName.isNotEmpty
+                                ? _userName.split(' ').first
+                                : 'User',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                    Text(
+                      _accountType,
+                      style: const TextStyle(
                         fontSize: 14,
                         color: Colors.grey,
                       ),
@@ -200,19 +301,21 @@ class _EditProfileState extends State<EditProfile> {
                         TextField(
                           controller: emailController,
                           keyboardType: TextInputType.emailAddress,
+                          readOnly: true,
                           decoration: InputDecoration(
                             filled: true,
-                            fillColor: Colors.white,
-                            border: customBorder(),
+                            fillColor: Colors.grey.shade200,
+                            border: customBorder(color: Colors.grey),
                             focusedBorder: customBorder(
-                              color: const Color(0xFF2ECC71),
+                              color: Colors.grey,
                               width: 2,
                             ),
-                            enabledBorder: customBorder(),
+                            enabledBorder: customBorder(color: Colors.grey),
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16,
                               vertical: 14,
                             ),
+                            hintStyle: TextStyle(color: Colors.grey.shade600),
                           ),
                         ),
                       ],

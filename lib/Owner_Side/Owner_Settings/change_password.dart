@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:smart_cb_1/services/firebase_auth_service.dart';
 
 class ChangePassword extends StatefulWidget {
   const ChangePassword({super.key});
@@ -16,6 +18,9 @@ class _ChangePasswordState extends State<ChangePassword> {
   bool _obscureOldPassword = true;
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
+
+  final FirebaseAuthService _authService = FirebaseAuthService();
 
   @override
   void dispose() {
@@ -25,7 +30,7 @@ class _ChangePasswordState extends State<ChangePassword> {
     super.dispose();
   }
 
-  void _changePassword() {
+  void _changePassword() async {
     String oldPassword = oldPasswordController.text.trim();
     String newPassword = newPasswordController.text.trim();
     String confirmPassword = confirmPasswordController.text.trim();
@@ -46,25 +51,72 @@ class _ChangePasswordState extends State<ChangePassword> {
       return;
     }
 
-    // TODO: Implement Firebase Auth password change
-    // Example:
-    // try {
-    //   User? user = FirebaseAuth.instance.currentUser;
-    //   AuthCredential credential = EmailAuthProvider.credential(
-    //     email: user!.email!,
-    //     password: oldPassword,
-    //   );
-    //   await user.reauthenticateWithCredential(credential);
-    //   await user.updatePassword(newPassword);
-    //   _showMessage('Password changed successfully');
-    //   Navigator.pop(context);
-    // } catch (e) {
-    //   _showMessage('Error: ${e.toString()}');
-    // }
+    setState(() {
+      _isLoading = true;
+    });
 
-    // For now, show success message
-    _showMessage('Password changed successfully');
-    Navigator.pop(context);
+    try {
+      User? user = _authService.currentUser;
+      if (user != null && user.email != null) {
+        // Reauthenticate user with old password
+        AuthCredential credential = EmailAuthProvider.credential(
+          email: user.email!,
+          password: oldPassword,
+        );
+
+        await user.reauthenticateWithCredential(credential);
+
+        // Update the password
+        await user.updatePassword(newPassword);
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        _showMessage('Password changed successfully');
+        Navigator.pop(context);
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        _showMessage('User not found. Please log in again.');
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      String errorMessage = 'An error occurred';
+      switch (e.code) {
+        case 'wrong-password':
+          errorMessage = 'Current password is incorrect';
+          break;
+        case 'weak-password':
+          errorMessage = 'New password is too weak';
+          break;
+        case 'requires-recent-login':
+          errorMessage = 'Please log in again to change your password';
+          break;
+        case 'user-mismatch':
+          errorMessage = 'User credentials mismatch';
+          break;
+        case 'user-not-found':
+          errorMessage = 'User not found';
+          break;
+        case 'invalid-credential':
+          errorMessage = 'Invalid credentials';
+          break;
+        default:
+          errorMessage = 'Error: ${e.message}';
+      }
+
+      _showMessage(errorMessage);
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showMessage('Error: ${e.toString()}');
+    }
   }
 
   void _showMessage(String message) {
@@ -136,17 +188,27 @@ class _ChangePasswordState extends State<ChangePassword> {
                           ),
                         ],
                       ),
-                      TextButton(
-                        onPressed: _changePassword,
-                        child: const Text(
-                          'Confirm',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+                      _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : TextButton(
+                              onPressed: _changePassword,
+                              child: const Text(
+                                'Confirm',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                     ],
                   ),
                 ),

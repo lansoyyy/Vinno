@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:smart_cb_1/auth/auth_wrapper.dart';
 import 'package:smart_cb_1/IntroAndRegistration/initial_setup.dart';
 import 'package:smart_cb_1/IntroAndRegistration/intro_screen.dart';
 import 'package:smart_cb_1/IntroAndRegistration/new_pin.dart';
@@ -60,7 +61,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {
-        '/': (context) => InitialSetup(),
+        '/': (context) => AuthWrapper(),
         '/otp_page': (context) => OtpPage(),
         '/new_pin': (context) => NewPin(),
         '/pin_success': (context) => PinSuccess(),

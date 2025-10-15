@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smart_cb_1/util/background_img.dart';
+import 'package:smart_cb_1/services/firebase_auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,6 +17,9 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController forgotEmailController = TextEditingController();
 
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  final FirebaseAuthService _authService = FirebaseAuthService();
 
   @override
   void dispose() {
@@ -23,23 +29,85 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _onLogin() {
+  void _onLogin() async {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
-    // if (email.isEmpty || password.isEmpty) {
-    //   _showMessage("Please fill out all fields.");
-    //   return;
-    // }
+    if (email.isEmpty || password.isEmpty) {
+      _showMessage("Please fill out all fields.");
+      return;
+    }
 
-    // if (!email.contains('@')) {
-    //   _showMessage("Please enter a valid email address.");
-    //   return;
-    // }
+    if (!email.contains('@')) {
+      _showMessage("Please enter a valid email address.");
+      return;
+    }
 
-    // TODO: Implement Firebase Auth login
-    // For now, navigate to circuit breaker list
-    Navigator.pushNamed(context, '/cblist');
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Sign in with Firebase
+    String? error = await _authService.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (error != null) {
+      _showMessage(error);
+    } else {
+      // Get user data to determine account type
+      User? currentUser = _authService.currentUser;
+      if (currentUser != null) {
+        DocumentSnapshot? userData =
+            await _authService.getUserData(currentUser.uid);
+        if (userData != null && userData.exists) {
+          Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
+          String accountType = data['accountType'] ?? 'Owner';
+
+          // Navigate based on account type
+          if (accountType == 'Owner') {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/cblist',
+              (route) => false,
+            );
+          } else if (accountType == 'Admin') {
+            // Navigate to admin page when implemented
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/cblist', // Temporary route, update when admin page is ready
+              (route) => false,
+            );
+          } else if (accountType == 'Staff') {
+            // Navigate to staff page when implemented
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/cblist', // Temporary route, update when staff page is ready
+              (route) => false,
+            );
+          } else {
+            // Default to owner navigation
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/navigationpage',
+              (route) => false,
+            );
+          }
+        } else {
+          // User data not found, navigate to default page
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/navigationpage',
+            (route) => false,
+          );
+        }
+      }
+    }
   }
 
   void _showMessage(String message) {
@@ -109,7 +177,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 String email = forgotEmailController.text.trim();
                 if (email.isEmpty) {
                   Navigator.pop(context);
@@ -121,9 +189,18 @@ class _LoginPageState extends State<LoginPage> {
                   _showMessage("Please enter a valid email address.");
                   return;
                 }
-                // TODO: Implement Firebase Auth password reset
+
+                // Show loading indicator
                 Navigator.pop(context);
-                _showMessage("Password reset link sent to $email");
+
+                // Send password reset email
+                String? error = await _authService.resetPassword(email: email);
+
+                if (error != null) {
+                  _showMessage(error);
+                } else {
+                  _showMessage("Password reset link sent to $email");
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4CAF50),
@@ -282,28 +359,33 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 40),
 
                     // Login Button
-                    ElevatedButton(
-                      onPressed: _onLogin,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 100,
-                          vertical: 16,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        elevation: 3,
-                      ),
-                      child: const Text(
-                        "LOGIN",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                    _isLoading
+                        ? const CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFF4CAF50)),
+                          )
+                        : ElevatedButton(
+                            onPressed: _onLogin,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4CAF50),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 100,
+                                vertical: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              elevation: 3,
+                            ),
+                            child: const Text(
+                              "LOGIN",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
 
                     const SizedBox(height: 30),
 

@@ -1,0 +1,173 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+
+class FirebaseAuthService {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Get current user
+  User? get currentUser => _auth.currentUser;
+
+  // Auth state changes stream
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  // Register owner with email and password
+  Future<String?> registerOwner({
+    required String email,
+    required String password,
+    required String name,
+    required String age,
+    required String address,
+    required String mobile,
+    required String birthday,
+  }) async {
+    try {
+      // Create user with email and password
+      UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Get the user ID
+      String uid = userCredential.user!.uid;
+
+      // Store additional user data in Firestore
+      await _firestore.collection('owners').doc(uid).set({
+        'uid': uid,
+        'name': name,
+        'age': age,
+        'address': address,
+        'mobile': mobile,
+        'birthday': birthday,
+        'email': email,
+        'accountType': 'Owner',
+        'createdAt': FieldValue.serverTimestamp(),
+        'isActive': true,
+      });
+
+      return null; // Success, return null for no error
+    } on FirebaseAuthException catch (e) {
+      if (kDebugMode) {
+        print('Firebase Auth Error: ${e.message}');
+      }
+      return _getErrorMessage(e.code);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error registering owner: $e');
+      }
+      return 'An unknown error occurred. Please try again.';
+    }
+  }
+
+  // Sign in with email and password
+  Future<String?> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return null; // Success, return null for no error
+    } on FirebaseAuthException catch (e) {
+      if (kDebugMode) {
+        print('Firebase Auth Error: ${e.message}');
+      }
+      return _getErrorMessage(e.code);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error signing in: $e');
+      }
+      return 'An unknown error occurred. Please try again.';
+    }
+  }
+
+  // Sign out
+  Future<void> signOut() async {
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error signing out: $e');
+      }
+    }
+  }
+
+  // Reset password
+  Future<String?> resetPassword({required String email}) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+      return null; // Success, return null for no error
+    } on FirebaseAuthException catch (e) {
+      if (kDebugMode) {
+        print('Firebase Auth Error: ${e.message}');
+      }
+      return _getErrorMessage(e.code);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error resetting password: $e');
+      }
+      return 'An unknown error occurred. Please try again.';
+    }
+  }
+
+  // Get user data from Firestore
+  Future<DocumentSnapshot?> getUserData(String uid) async {
+    try {
+      // Check in owners collection first
+      DocumentSnapshot doc =
+          await _firestore.collection('owners').doc(uid).get();
+      if (doc.exists) {
+        return doc;
+      }
+
+      // Check in admins collection
+      doc = await _firestore.collection('admins').doc(uid).get();
+      if (doc.exists) {
+        return doc;
+      }
+
+      // Check in staff collection
+      doc = await _firestore.collection('staff').doc(uid).get();
+      if (doc.exists) {
+        return doc;
+      }
+
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting user data: $e');
+      }
+      return null;
+    }
+  }
+
+  // Convert Firebase Auth error codes to user-friendly messages
+  String _getErrorMessage(String errorCode) {
+    switch (errorCode) {
+      case 'weak-password':
+        return 'The password provided is too weak.';
+      case 'email-already-in-use':
+        return 'An account already exists for this email.';
+      case 'invalid-email':
+        return 'The email address is not valid.';
+      case 'operation-not-allowed':
+        return 'Email/password accounts are not enabled.';
+      case 'user-disabled':
+        return 'This user account has been disabled.';
+      case 'user-not-found':
+        return 'No user found for this email.';
+      case 'wrong-password':
+        return 'The password is incorrect.';
+      case 'too-many-requests':
+        return 'Too many requests. Try again later.';
+      case 'network-request-failed':
+        return 'Network error. Please check your connection.';
+      default:
+        return 'An authentication error occurred: $errorCode';
+    }
+  }
+}
