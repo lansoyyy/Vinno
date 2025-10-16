@@ -45,6 +45,8 @@ class FirebaseAuthService {
         'accountType': 'Owner',
         'createdAt': FieldValue.serverTimestamp(),
         'isActive': true,
+        'latitude': 0,
+        'longitude': 0,
       });
 
       return null; // Success, return null for no error
@@ -162,6 +164,8 @@ class FirebaseAuthService {
         'createdAt': FieldValue.serverTimestamp(),
         'isActive': true,
         'createdBy': ownerId, // Owner who created this account
+        'latitude': 0,
+        'longitude': 0,
       });
 
       // Sign out the newly created user

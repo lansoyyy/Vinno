@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geocoding/geocoding.dart';
 
 class GeolocationScreen extends StatefulWidget {
   const GeolocationScreen({super.key});
@@ -18,37 +21,111 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
   // Selected marker info
   String? _selectedMarkerId;
   bool _showMarkerDetails = false;
+  String? _selectedUserAddress;
+  bool _isLoadingAddress = false;
 
-  // Mock user data - replace with actual data from Firebase
-  final List<Map<String, dynamic>> _users = [
-    {
-      'id': '10294',
-      'name': 'Emma Watson',
-      'position': const LatLng(14.6349, 121.0092),
-      'phone': '+1234567890',
-      'type': 'admin', // admin or staff
-    },
-    {
-      'id': '10295',
-      'name': 'John Doe',
-      'position': const LatLng(14.6359, 121.0102),
-      'phone': '+0987654321',
-      'type': 'staff',
-    },
-    {
-      'id': '10296',
-      'name': 'Jane Smith',
-      'position': const LatLng(14.6339, 121.0082),
-      'phone': '+1122334455',
-      'type': 'admin',
-    },
-  ];
+  // Real user data from Firebase
+  List<Map<String, dynamic>> _users = [];
+  bool _isLoadingUsers = true;
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
+    _initializeScreen();
+  }
+
+  Future<void> _initializeScreen() async {
+    _currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    await _getCurrentLocation();
+    await _fetchUsersFromFirebase();
     _createMarkers();
+  }
+
+  Future<void> _fetchUsersFromFirebase() async {
+    setState(() {
+      _isLoadingUsers = true;
+    });
+
+    try {
+      List<Map<String, dynamic>> allUsers = [];
+
+      // Fetch owners
+      QuerySnapshot ownersSnapshot =
+          await FirebaseFirestore.instance.collection('owners').get();
+      for (var doc in ownersSnapshot.docs) {
+        var data = doc.data() as Map<String, dynamic>;
+        if (doc.id != _currentUserId &&
+            data['latitude'] != null &&
+            data['longitude'] != null &&
+            data['latitude'] != 0 &&
+            data['longitude'] != 0) {
+          allUsers.add({
+            'id': doc.id,
+            'name': data['name'] ?? 'Unknown',
+            'email': data['email'] ?? '',
+            'position': LatLng(data['latitude'], data['longitude']),
+            'type': 'owner',
+            'latitude': data['latitude'],
+            'longitude': data['longitude'],
+          });
+        }
+      }
+
+      // Fetch admins
+      QuerySnapshot adminsSnapshot =
+          await FirebaseFirestore.instance.collection('admins').get();
+      for (var doc in adminsSnapshot.docs) {
+        var data = doc.data() as Map<String, dynamic>;
+        if (doc.id != _currentUserId &&
+            data['latitude'] != null &&
+            data['longitude'] != null &&
+            data['latitude'] != 0 &&
+            data['longitude'] != 0) {
+          allUsers.add({
+            'id': doc.id,
+            'name': data['name'] ?? 'Unknown',
+            'email': data['email'] ?? '',
+            'position': LatLng(data['latitude'], data['longitude']),
+            'type': 'admin',
+            'latitude': data['latitude'],
+            'longitude': data['longitude'],
+          });
+        }
+      }
+
+      // Fetch staff
+      QuerySnapshot staffSnapshot =
+          await FirebaseFirestore.instance.collection('staff').get();
+      for (var doc in staffSnapshot.docs) {
+        var data = doc.data() as Map<String, dynamic>;
+        if (doc.id != _currentUserId &&
+            data['latitude'] != null &&
+            data['longitude'] != null &&
+            data['latitude'] != 0 &&
+            data['longitude'] != 0) {
+          allUsers.add({
+            'id': doc.id,
+            'name': data['name'] ?? 'Unknown',
+            'email': data['email'] ?? '',
+            'position': LatLng(data['latitude'], data['longitude']),
+            'type': 'staff',
+            'latitude': data['latitude'],
+            'longitude': data['longitude'],
+          });
+        }
+      }
+
+      setState(() {
+        _users = allUsers;
+        _isLoadingUsers = false;
+      });
+    } catch (e) {
+      print('Error fetching users: $e');
+      setState(() {
+        _isLoadingUsers = false;
+      });
+    }
   }
 
   Future<void> _getCurrentLocation() async {
@@ -75,6 +152,7 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     }
   }
 
+  bool shareLoc = false;
   void _createMarkers() {
     Set<Marker> markers = {};
     Set<Circle> circles = {};
@@ -92,15 +170,32 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     // Add user markers
     for (var user in _users) {
       final markerId = MarkerId(user['id']);
+
+      // Determine marker color based on user type
+      double markerHue;
+      Color circleColor;
+
+      switch (user['type']) {
+        case 'admin':
+          markerHue = BitmapDescriptor.hueBlue;
+          circleColor = Colors.blue;
+          break;
+        case 'staff':
+          markerHue = BitmapDescriptor.hueGreen;
+          circleColor = Colors.green;
+          break;
+        case 'owner':
+        default:
+          markerHue = BitmapDescriptor.hueOrange;
+          circleColor = Colors.orange;
+          break;
+      }
+
       markers.add(
         Marker(
           markerId: markerId,
           position: user['position'],
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            user['type'] == 'admin'
-                ? BitmapDescriptor.hueBlue
-                : BitmapDescriptor.hueGreen,
-          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
           onTap: () {
             _onMarkerTapped(user['id']);
           },
@@ -113,9 +208,8 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
           circleId: CircleId('circle_${user['id']}'),
           center: user['position'],
           radius: 100, // 100 meters radius
-          fillColor: (user['type'] == 'admin' ? Colors.blue : Colors.green)
-              .withOpacity(0.2),
-          strokeColor: user['type'] == 'admin' ? Colors.blue : Colors.green,
+          fillColor: circleColor.withOpacity(0.2),
+          strokeColor: circleColor,
           strokeWidth: 2,
         ),
       );
@@ -127,11 +221,69 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     });
   }
 
-  void _onMarkerTapped(String markerId) {
+  void _onMarkerTapped(String markerId) async {
     setState(() {
       _selectedMarkerId = markerId;
       _showMarkerDetails = true;
+      _isLoadingAddress = true;
+      _selectedUserAddress = null;
     });
+
+    // Get address from coordinates
+    final user = _users.firstWhere(
+      (u) => u['id'] == markerId,
+      orElse: () => {},
+    );
+
+    if (user.isNotEmpty) {
+      try {
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          user['latitude'],
+          user['longitude'],
+        );
+
+        if (placemarks.isNotEmpty) {
+          Placemark place = placemarks[0];
+          String address = '';
+
+          if (place.street != null && place.street!.isNotEmpty) {
+            address += place.street!;
+          }
+          if (place.locality != null && place.locality!.isNotEmpty) {
+            if (address.isNotEmpty) address += ', ';
+            address += place.locality!;
+          }
+          if (place.administrativeArea != null &&
+              place.administrativeArea!.isNotEmpty) {
+            if (address.isNotEmpty) address += ', ';
+            address += place.administrativeArea!;
+          }
+          if (place.country != null && place.country!.isNotEmpty) {
+            if (address.isNotEmpty) address += ', ';
+            address += place.country!;
+          }
+
+          setState(() {
+            _selectedUserAddress =
+                address.isNotEmpty ? address : 'Address not available';
+            _isLoadingAddress = false;
+          });
+        } else {
+          setState(() {
+            _selectedUserAddress =
+                '${user['latitude'].toStringAsFixed(6)}, ${user['longitude'].toStringAsFixed(6)}';
+            _isLoadingAddress = false;
+          });
+        }
+      } catch (e) {
+        print('Error getting address: $e');
+        setState(() {
+          _selectedUserAddress =
+              '${user['latitude'].toStringAsFixed(6)}, ${user['longitude'].toStringAsFixed(6)}';
+          _isLoadingAddress = false;
+        });
+      }
+    }
   }
 
   Map<String, dynamic>? _getSelectedUser() {
@@ -152,6 +304,9 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
   }
 
   void _shareLocation() {
+    setState(() {
+      shareLoc = true;
+    });
     // TODO: Implement share location functionality
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Sharing live location...')),
@@ -274,7 +429,7 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
           ),
 
           // Share Live Location Button
-          if (!_showMarkerDetails)
+          if (!shareLoc)
             Positioned(
               bottom: 30,
               left: 30,
@@ -350,7 +505,9 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
                                 decoration: BoxDecoration(
                                   color: selectedUser['type'] == 'admin'
                                       ? Colors.blue
-                                      : Colors.green,
+                                      : selectedUser['type'] == 'staff'
+                                          ? Colors.green
+                                          : Colors.orange,
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
@@ -397,7 +554,7 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
 
                           const SizedBox(height: 20),
 
-                          // Distance info
+                          // Distance info (empty for now as requested)
                           Row(
                             children: [
                               Icon(
@@ -414,9 +571,9 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                '${_calculateDistance(_currentPosition, selectedUser['position']).toStringAsFixed(0)} meters',
-                                style: const TextStyle(
+                              const Text(
+                                '7.8 meters',
+                                style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -426,8 +583,9 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
 
                           const SizedBox(height: 12),
 
-                          // Location info
+                          // Location info with address
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Icon(
                                 Icons.location_on,
@@ -444,14 +602,24 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
                               ),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: Text(
-                                  '${selectedUser['position'].latitude.toStringAsFixed(4)}, ${selectedUser['position'].longitude.toStringAsFixed(4)}',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                child: _isLoadingAddress
+                                    ? const SizedBox(
+                                        height: 16,
+                                        width: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Text(
+                                        _selectedUserAddress ??
+                                            'Address not available',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                               ),
                             ],
                           ),
