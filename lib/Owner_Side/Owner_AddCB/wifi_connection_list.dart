@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:wifi_scan/wifi_scan.dart';
+import 'package:network_info_plus/network_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class WifiConnectionList extends StatefulWidget {
   const WifiConnectionList({super.key});
@@ -10,39 +13,122 @@ class WifiConnectionList extends StatefulWidget {
 class _WifiConnectionListState extends State<WifiConnectionList> {
   bool isScanning = false;
   String? selectedNetwork;
+  String? connectedSSID;
+  List<WiFiAccessPoint> wifiNetworks = [];
+  bool canScan = false;
 
-  // Mock WiFi networks data - will be replaced with actual WiFi scanning package
-  final List<Map<String, dynamic>> wifiNetworks = [
-    {'name': 'Home WiFi', 'signal': 4, 'secured': true},
-    {'name': 'Office Network', 'signal': 3, 'secured': true},
-    {'name': 'Guest WiFi', 'signal': 2, 'secured': false},
-    {'name': 'Neighbor WiFi', 'signal': 1, 'secured': true},
-    {'name': 'Mobile Hotspot', 'signal': 3, 'secured': true},
-    {'name': 'Coffee Shop', 'signal': 2, 'secured': false},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _checkPermissionsAndScan();
+  }
 
-  void _scanWifi() {
+  Future<void> _checkPermissionsAndScan() async {
+    // Check if WiFi scan is supported
+    final can = await WiFiScan.instance.canStartScan();
+    setState(() {
+      canScan = can == CanStartScan.yes;
+    });
+
+    if (canScan) {
+      await _requestPermissions();
+      await _getConnectedNetwork();
+      await _scanWifi();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('WiFi scanning not supported on this device')),
+      );
+    }
+  }
+
+  Future<void> _requestPermissions() async {
+    // Request location permission (required for WiFi scanning on Android)
+    final status = await Permission.location.request();
+    if (status.isDenied) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Location permission is required to scan WiFi')),
+      );
+    }
+  }
+
+  Future<void> _getConnectedNetwork() async {
+    try {
+      final info = NetworkInfo();
+      final wifiName = await info.getWifiName();
+      setState(() {
+        connectedSSID = wifiName?.replaceAll('"', ''); // Remove quotes
+      });
+    } catch (e) {
+      print('Error getting connected network: $e');
+    }
+  }
+
+  Future<void> _scanWifi() async {
+    if (!canScan) return;
+
     setState(() {
       isScanning = true;
     });
 
-    // Simulate scanning delay - will be replaced with actual WiFi scan
-    Future.delayed(const Duration(seconds: 2), () {
+    try {
+      // Start WiFi scan
+      final canStart = await WiFiScan.instance.canStartScan();
+      if (canStart == CanStartScan.yes) {
+        final result = await WiFiScan.instance.startScan();
+        if (result) {
+          // Wait a bit for scan to complete
+          await Future.delayed(const Duration(seconds: 2));
+
+          // Get scan results
+          final results = await WiFiScan.instance.getScannedResults();
+
+          // Remove duplicates and sort by signal strength
+          final uniqueNetworks = <String, WiFiAccessPoint>{};
+          for (var network in results) {
+            if (network.ssid.isNotEmpty) {
+              if (!uniqueNetworks.containsKey(network.ssid) ||
+                  network.level > uniqueNetworks[network.ssid]!.level) {
+                uniqueNetworks[network.ssid] = network;
+              }
+            }
+          }
+
+          // Sort by signal strength (higher is better)
+          final sortedNetworks = uniqueNetworks.values.toList()
+            ..sort((a, b) => b.level.compareTo(a.level));
+
+          setState(() {
+            wifiNetworks = sortedNetworks;
+            isScanning = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Found ${wifiNetworks.length} networks')),
+          );
+        } else {
+          setState(() {
+            isScanning = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to start WiFi scan')),
+          );
+        }
+      }
+    } catch (e) {
       setState(() {
         isScanning = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('WiFi scan completed')),
+        SnackBar(content: Text('Error scanning WiFi: $e')),
       );
-    });
+    }
   }
 
   void _connectToNetwork(String networkName, bool isSecured) {
-    if (isSecured) {
-      _showPasswordDialog(networkName);
-    } else {
-      _connectToOpenNetwork(networkName);
-    }
+    // Always show password dialog for all networks
+    _showPasswordDialog(networkName);
   }
 
   void _showPasswordDialog(String networkName) {
@@ -66,6 +152,11 @@ class _WifiConnectionListState extends State<WifiConnectionList> {
               const Text(
                 'Enter WiFi Password:',
                 style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 5),
+              const Text(
+                '(Leave empty for open networks)',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 15),
               TextField(
@@ -109,14 +200,7 @@ class _WifiConnectionListState extends State<WifiConnectionList> {
             ElevatedButton(
               onPressed: () {
                 String password = passwordController.text.trim();
-                if (password.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter password')),
-                  );
-                  return;
-                }
                 Navigator.pop(context);
-                // TODO: Implement actual WiFi connection with password
                 _connectWithPassword(networkName, password);
               },
               style: ElevatedButton.styleFrom(
@@ -139,52 +223,53 @@ class _WifiConnectionListState extends State<WifiConnectionList> {
       selectedNetwork = networkName;
     });
 
-    // Simulate connection - will be replaced with actual WiFi connection
+    // You now have both SSID and password
+    print('SSID: $networkName');
+    print('Password: $password');
+
+    // TODO: Send WiFi credentials to your circuit breaker device
+    // Example: _sendCredentialsToDevice(networkName, password);
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Connecting to $networkName...')),
+      SnackBar(
+        content: Text('Configuring device with WiFi: $networkName'),
+        duration: const Duration(seconds: 3),
+      ),
     );
 
+    // Navigate to next step
     Future.delayed(const Duration(seconds: 2), () {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Connected to $networkName')),
-      );
-      // Navigate to next step after successful connection
       Navigator.pushNamed(context, '/search_connection');
     });
   }
 
-  void _connectToOpenNetwork(String networkName) {
-    setState(() {
-      selectedNetwork = networkName;
-    });
-
-    // Simulate connection - will be replaced with actual WiFi connection
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Connecting to $networkName...')),
-    );
-
-    Future.delayed(const Duration(seconds: 2), () {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Connected to $networkName')),
-      );
-      // Navigate to next step after successful connection
-      Navigator.pushNamed(context, '/search_connection');
-    });
-  }
-
-  IconData _getSignalIcon(int signalStrength) {
-    switch (signalStrength) {
-      case 4:
-        return Icons.signal_wifi_4_bar;
-      case 3:
-        return Icons.signal_wifi_4_bar;
-      case 2:
-        return Icons.signal_wifi_4_bar;
-      case 1:
-        return Icons.signal_wifi_4_bar;
-      default:
-        return Icons.signal_wifi_off;
+  IconData _getSignalIcon(int level) {
+    // WiFi signal levels are typically from -100 (weak) to -30 (strong)
+    if (level >= -50) {
+      return Icons.signal_wifi_4_bar;
+    } else if (level >= -60) {
+      return Icons.signal_wifi_4_bar;
+    } else if (level >= -70) {
+      return Icons.signal_wifi_4_bar;
+    } else if (level >= -80) {
+      return Icons.signal_wifi_4_bar;
+    } else {
+      return Icons.signal_wifi_statusbar_4_bar;
     }
+  }
+
+  String _getSecurityType(WiFiAccessPoint network) {
+    if (network.capabilities.contains('WPA3')) return 'WPA3';
+    if (network.capabilities.contains('WPA2')) return 'WPA2';
+    if (network.capabilities.contains('WPA')) return 'WPA';
+    if (network.capabilities.contains('WEP')) return 'WEP';
+    return 'Open';
+  }
+
+  bool _isSecured(WiFiAccessPoint network) {
+    return !network.capabilities.contains('[ESS]') ||
+        network.capabilities.contains('WPA') ||
+        network.capabilities.contains('WEP');
   }
 
   @override
@@ -327,8 +412,10 @@ class _WifiConnectionListState extends State<WifiConnectionList> {
                           itemCount: wifiNetworks.length,
                           itemBuilder: (context, index) {
                             final network = wifiNetworks[index];
-                            final isSelected =
-                                selectedNetwork == network['name'];
+                            final isSelected = selectedNetwork == network.ssid;
+                            final isConnected = connectedSSID == network.ssid;
+                            final isSecured = _isSecured(network);
+                            final securityType = _getSecurityType(network);
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 12),
@@ -336,10 +423,10 @@ class _WifiConnectionListState extends State<WifiConnectionList> {
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: isSelected
+                                  color: isSelected || isConnected
                                       ? const Color(0xFF4CAF50)
                                       : Colors.grey.shade300,
-                                  width: isSelected ? 2 : 1,
+                                  width: isSelected || isConnected ? 2 : 1,
                                 ),
                                 boxShadow: [
                                   BoxShadow(
@@ -355,32 +442,56 @@ class _WifiConnectionListState extends State<WifiConnectionList> {
                                   vertical: 8,
                                 ),
                                 leading: Icon(
-                                  _getSignalIcon(network['signal']),
-                                  color: isSelected
+                                  _getSignalIcon(network.level),
+                                  color: isSelected || isConnected
                                       ? const Color(0xFF4CAF50)
                                       : Colors.black87,
                                   size: 28,
                                 ),
-                                title: Text(
-                                  network['name'],
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                    color: isSelected
-                                        ? const Color(0xFF4CAF50)
-                                        : Colors.black,
-                                  ),
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        network.ssid,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 16,
+                                          color: isSelected || isConnected
+                                              ? const Color(0xFF4CAF50)
+                                              : Colors.black,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isConnected)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF4CAF50),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: const Text(
+                                          'Connected',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                                 subtitle: Text(
-                                  network['secured']
-                                      ? 'Secured'
-                                      : 'Open Network',
+                                  securityType,
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey.shade600,
                                   ),
                                 ),
-                                trailing: network['secured']
+                                trailing: isSecured
                                     ? Icon(
                                         Icons.lock,
                                         color: Colors.grey.shade600,
@@ -389,8 +500,8 @@ class _WifiConnectionListState extends State<WifiConnectionList> {
                                     : null,
                                 onTap: () {
                                   _connectToNetwork(
-                                    network['name'],
-                                    network['secured'],
+                                    network.ssid,
+                                    isSecured,
                                   );
                                 },
                               ),
