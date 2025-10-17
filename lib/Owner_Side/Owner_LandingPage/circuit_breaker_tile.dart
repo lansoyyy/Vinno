@@ -10,6 +10,7 @@ class CircuitBreakerTile extends StatelessWidget {
   final bool isEditMode;
   final bool isSelected;
   final Function(bool?)? onCheckboxChanged;
+  final Map<String, dynamic>? cbData; // Added circuit breaker data
 
   CircuitBreakerTile({
     super.key,
@@ -19,6 +20,7 @@ class CircuitBreakerTile extends StatelessWidget {
     required this.isEditMode,
     required this.isSelected,
     required this.onCheckboxChanged,
+    this.cbData, // Optional CB data
   });
 
   @override
@@ -30,7 +32,9 @@ class CircuitBreakerTile extends StatelessWidget {
           if (!isEditMode)
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => BracketOptionPage()),
+              MaterialPageRoute(
+                builder: (context) => BracketOptionPage(cbData: cbData),
+              ),
             );
         },
         child: Container(

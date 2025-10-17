@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_LandingPage/circuit_breaker_tile.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_LandingPage/nav_home.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/statistics_menu.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class CircuitBreakerList extends StatefulWidget {
   const CircuitBreakerList({super.key});
@@ -20,26 +22,108 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
   List<List<List<dynamic>>> undoStack = [];
   List<List<List<dynamic>>> redoStack = [];
 
-  List bracketList = [
-    ["Kitchen", true],
-    ["Hallway", false],
-    ["Bathroom", true],
-    ["Fridge", true],
-    ["Freezer", true],
-    ["Security System", true],
-    ["Outdoor Lights", false],
-  ];
+  // Changed from hardcoded list to dynamic list from Firebase
+  List<Map<String, dynamic>> bracketList = [];
+  bool isLoading = true;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+  String? currentUserId;
 
-  // Switch Changed
-  void switchChanged(bool? value, int index) {
+  @override
+  void initState() {
+    super.initState();
+    _fetchCircuitBreakers();
+  }
+
+  Future<void> _fetchCircuitBreakers() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
+
+      currentUserId = user.uid;
+
+      // Listen to circuit breakers in real-time
+      _dbRef.child('circuitBreakers').onValue.listen((event) {
+        final data = event.snapshot.value as Map<dynamic, dynamic>?;
+
+        if (data == null) {
+          setState(() {
+            bracketList = [];
+            isLoading = false;
+          });
+          return;
+        }
+
+        List<Map<String, dynamic>> loadedCBs = [];
+
+        data.forEach((key, value) {
+          final cbData = Map<String, dynamic>.from(value as Map);
+          // Only load circuit breakers owned by current user
+          if (cbData['ownerId'] == currentUserId) {
+            loadedCBs.add({
+              'scbId': key,
+              'scbName': cbData['scbName'] ?? 'Unknown',
+              'isOn': cbData['isOn'] ?? false,
+              'circuitBreakerRating': cbData['circuitBreakerRating'] ?? 0,
+              'voltage': cbData['voltage'] ?? 0,
+              'current': cbData['current'] ?? 0,
+              'temperature': cbData['temperature'] ?? 0,
+              'power': cbData['power'] ?? 0,
+              'energy': cbData['energy'] ?? 0,
+              'latitude': cbData['latitude'] ?? 0.0,
+              'longitude': cbData['longitude'] ?? 0.0,
+              'wifiName': cbData['wifiName'] ?? '',
+            });
+          }
+        });
+
+        setState(() {
+          bracketList = loadedCBs;
+          isLoading = false;
+        });
+      });
+    } catch (e) {
+      print('Error fetching circuit breakers: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  // Switch Changed - Update Firebase
+  Future<void> switchChanged(bool? value, int index) async {
+    final cb = bracketList[index];
+    final newState = !cb['isOn'];
+
+    // Optimistically update UI
     setState(() {
-      bracketList[index][1] = !bracketList[index][1];
+      bracketList[index]['isOn'] = newState;
     });
+
+    try {
+      // Update in Firebase
+      await _dbRef
+          .child('circuitBreakers')
+          .child(cb['scbId'])
+          .update({'isOn': newState});
+    } catch (e) {
+      // Revert on error
+      setState(() {
+        bracketList[index]['isOn'] = !newState;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating circuit breaker: $e')),
+      );
+    }
   }
 
   void _saveForUndo() {
-    undoStack.add(bracketList.map((e) => [...e]).toList());
-    redoStack.clear(); // Clear redo stack when a new action is made
+    // Undo functionality disabled for now with Firebase
+    // Can be implemented with local state management if needed
   }
 
   // add new Bracket
@@ -76,54 +160,10 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                         if (isEditMode)
                           Row(
                             children: [
-                              // Undo Changes
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    if (undoStack.isNotEmpty) {
-                                      redoStack.add(
-                                        bracketList.map((e) => [...e]).toList(),
-                                      );
-                                      bracketList = undoStack.removeLast();
-                                    }
-                                  });
-                                },
-                                child: Icon(
-                                  Icons.undo_rounded,
-                                  size: 30,
-                                  color: undoStack.isNotEmpty
-                                      ? Colors.black
-                                      : Colors.grey,
-                                ),
-                              ),
-
                               Text(
-                                '|',
+                                "Edit Mode  |  ",
                                 style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 20,
-                                ),
-                              ),
-
-                              // Redo Changes
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    if (redoStack.isNotEmpty) {
-                                      undoStack.add(
-                                        bracketList.map((e) => [...e]).toList(),
-                                      );
-                                      bracketList = redoStack.removeLast();
-                                    }
-                                  });
-                                },
-                                child: Icon(
-                                  Icons.redo_rounded,
-                                  size: 30,
-                                  color: redoStack.isNotEmpty
-                                      ? Colors.black
-                                      : Colors.grey,
-                                ),
+                                    fontSize: 16, fontWeight: FontWeight.bold),
                               ),
                             ],
                           ),
@@ -143,10 +183,6 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                               setState(() {
                                 isEditMode = true;
                                 selectedBracketNames.clear();
-
-                                //Copy of BracketList
-                                originalBracketList =
-                                    bracketList.map((e) => [...e]).toList();
                               });
                             },
                             child: Icon(Icons.edit, size: 30),
@@ -167,7 +203,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                                       // Select all
                                       selectedBracketNames = bracketList
                                           .map<String>(
-                                            (item) => item[0] as String,
+                                            (item) => item['scbName'] as String,
                                           )
                                           .toSet();
                                     } else {
@@ -212,14 +248,18 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
 
                               // Delete Button
                               GestureDetector(
-                                onTap: () {
+                                onTap: () async {
+                                  // Delete selected circuit breakers from Firebase
+                                  for (var cb in bracketList) {
+                                    if (selectedBracketNames
+                                        .contains(cb['scbName'])) {
+                                      await _dbRef
+                                          .child('circuitBreakers')
+                                          .child(cb['scbId'])
+                                          .remove();
+                                    }
+                                  }
                                   setState(() {
-                                    _saveForUndo();
-                                    bracketList.removeWhere(
-                                      (item) => selectedBracketNames.contains(
-                                        item[0],
-                                      ),
-                                    );
                                     selectedBracketNames.clear();
                                   });
                                 },
@@ -329,34 +369,42 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                               ),
                             )
                       // There are Brackets
-                      : Expanded(
-                          child: ListView.builder(
-                            padding: EdgeInsets.only(top: 0, bottom: 120),
-                            itemCount: bracketList.length,
-                            itemBuilder: (context, index) {
-                              return CircuitBreakerTile(
-                                bracketName: bracketList[index][0],
-                                turnOn: bracketList[index][1],
-                                onChanged: (value) =>
-                                    switchChanged(value, index),
-                                isEditMode: isEditMode,
-                                isSelected: selectedBracketNames.contains(
-                                  bracketList[index][0],
-                                ),
-                                onCheckboxChanged: (checked) {
-                                  setState(() {
-                                    final name = bracketList[index][0];
-                                    if (checked == true) {
-                                      selectedBracketNames.add(name);
-                                    } else {
-                                      selectedBracketNames.remove(name);
-                                    }
-                                  });
+                      : isLoading
+                          ? Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF2ECC71),
+                              ),
+                            )
+                          : Expanded(
+                              child: ListView.builder(
+                                padding: EdgeInsets.only(top: 0, bottom: 120),
+                                itemCount: bracketList.length,
+                                itemBuilder: (context, index) {
+                                  final cb = bracketList[index];
+                                  return CircuitBreakerTile(
+                                    bracketName: cb['scbName'],
+                                    turnOn: cb['isOn'],
+                                    onChanged: (value) =>
+                                        switchChanged(value, index),
+                                    isEditMode: isEditMode,
+                                    isSelected: selectedBracketNames.contains(
+                                      cb['scbName'],
+                                    ),
+                                    onCheckboxChanged: (checked) {
+                                      setState(() {
+                                        final name = cb['scbName'];
+                                        if (checked == true) {
+                                          selectedBracketNames.add(name);
+                                        } else {
+                                          selectedBracketNames.remove(name);
+                                        }
+                                      });
+                                    },
+                                    cbData: cb, // Pass complete CB data
+                                  );
                                 },
-                              );
-                            },
-                          ),
-                        ),
+                              ),
+                            ),
                 ],
               ),
               if (isEditMode)
@@ -415,12 +463,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                             onPressed: () {
                               setState(() {
                                 isEditMode = false;
-                                bracketList = originalBracketList
-                                    .map((e) => [...e])
-                                    .toList();
                                 selectedBracketNames.clear();
-                                redoStack.clear();
-                                undoStack.clear();
                               });
                             },
                           ),
@@ -459,12 +502,11 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                                 ),
                               ),
                             ),
-                            child: Text('Save', textAlign: TextAlign.center),
+                            child: Text('Done', textAlign: TextAlign.center),
                             onPressed: () {
                               setState(() {
                                 isEditMode = false;
-                                redoStack.clear();
-                                undoStack.clear();
+                                selectedBracketNames.clear();
                               });
                             },
                           ),

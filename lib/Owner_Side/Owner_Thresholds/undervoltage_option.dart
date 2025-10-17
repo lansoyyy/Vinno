@@ -3,11 +3,17 @@ import 'package:flutter/material.dart';
 class UndervoltageSetting extends StatefulWidget {
   final void Function(bool) onPress;
   final Widget divider;
+  double? initialValue;
+  String? initialAction;
+  final Function(double value, String action)? onChanged;
 
   UndervoltageSetting({
     super.key,
     required this.onPress,
     required this.divider,
+    this.initialValue,
+    this.initialAction,
+    this.onChanged,
   });
 
   @override
@@ -16,8 +22,11 @@ class UndervoltageSetting extends StatefulWidget {
 
 class _UndervoltageSettingState extends State<UndervoltageSetting> {
   bool isExpanded = false;
-  double _undervoltageValue = 207.0;
-  String _undervoltageChosen = 'Alarm';
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +67,7 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
             Row(
               children: [
                 Text(
-                  _undervoltageValue.toStringAsFixed(1),
+                  widget.initialValue!.toStringAsFixed(1),
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight:
@@ -76,7 +85,7 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
               ],
             ),
             Text(
-              _undervoltageChosen.toString(),
+              widget.initialAction!.toString(),
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: isExpanded ? FontWeight.bold : FontWeight.normal,
@@ -111,7 +120,7 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _undervoltageValue.toStringAsFixed(1),
+                      widget.initialValue!.toStringAsFixed(1),
                       style: TextStyle(
                         fontSize: 35,
                         fontWeight: FontWeight.w400,
@@ -135,10 +144,11 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
                       iconSize: 28,
                       onPressed: () {
                         setState(() {
-                          _undervoltageValue = (_undervoltageValue - 1).clamp(
+                          widget.initialValue = (widget.initialValue! - 1).clamp(
                             0,
                             300,
                           );
+                          widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
                         });
                       },
                     ),
@@ -150,7 +160,7 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
                           context,
                         ).copyWith(thumbShape: SliderComponentShape.noThumb),
                         child: Slider(
-                          value: _undervoltageValue,
+                          value: widget.initialValue!,
                           min: 0,
                           max: 300,
                           divisions: 600,
@@ -158,7 +168,8 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
                           inactiveColor: Colors.grey[300],
                           onChanged: (value) {
                             setState(() {
-                              _undervoltageValue = value;
+                              widget.initialValue = value;
+                              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
                             });
                           },
                         ),
@@ -170,10 +181,11 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
                       iconSize: 28,
                       onPressed: () {
                         setState(() {
-                          _undervoltageValue = (_undervoltageValue + 1).clamp(
+                          widget.initialValue = (widget.initialValue! + 1).clamp(
                             0,
                             300,
                           );
+                          widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
                         });
                       },
                     ),
@@ -215,19 +227,20 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           selectedColor: Color(0xFF2ECC71),
-          selected: (_undervoltageChosen == 'Off'),
+          selected: (widget.initialAction! == 'Off'),
           onSelected: (bool value) {
             setState(() {
-              _undervoltageChosen = 'Off';
+              widget.initialAction = 'Off';
+              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
             });
           },
           label: Text(
             'Off',
             style: TextStyle(
               color:
-                  (_undervoltageChosen == 'Off') ? Colors.white : Colors.black,
+                  (widget.initialAction! == 'Off') ? Colors.white : Colors.black,
               fontWeight:
-                  (_undervoltageChosen == 'Off')
+                  (widget.initialAction! == 'Off')
                       ? FontWeight.w900
                       : FontWeight.normal,
             ),
@@ -238,11 +251,11 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
             'Alarm',
             style: TextStyle(
               color:
-                  (_undervoltageChosen == 'Alarm')
+                  (widget.initialAction! == 'Alarm')
                       ? Colors.white
                       : Colors.black,
               fontWeight:
-                  (_undervoltageChosen == 'Alarm')
+                  (widget.initialAction! == 'Alarm')
                       ? FontWeight.bold
                       : FontWeight.normal,
             ),
@@ -253,10 +266,11 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           selectedColor: Color(0xFF2ECC71),
-          selected: (_undervoltageChosen == 'Alarm'),
+          selected: (widget.initialAction! == 'Alarm'),
           onSelected: (bool value) {
             setState(() {
-              _undervoltageChosen = 'Alarm';
+              widget.initialAction = 'Alarm';
+              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
             });
           },
         ),
@@ -265,9 +279,9 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
             'Trip',
             style: TextStyle(
               color:
-                  (_undervoltageChosen == 'Trip') ? Colors.white : Colors.black,
+                  (widget.initialAction! == 'Trip') ? Colors.white : Colors.black,
               fontWeight:
-                  (_undervoltageChosen == 'Trip')
+                  (widget.initialAction! == 'Trip')
                       ? FontWeight.bold
                       : FontWeight.normal,
             ),
@@ -278,10 +292,11 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           selectedColor: Color(0xFF2ECC71),
-          selected: (_undervoltageChosen == 'Trip'),
+          selected: (widget.initialAction! == 'Trip'),
           onSelected: (bool value) {
             setState(() {
-              _undervoltageChosen = 'Trip';
+              widget.initialAction = 'Trip';
+              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
             });
           },
         ),

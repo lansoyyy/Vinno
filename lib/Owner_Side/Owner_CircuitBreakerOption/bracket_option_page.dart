@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_CircuitBreakerOption/bracket-on-off.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Navigation/navigation_page.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class BracketOptionPage extends StatefulWidget {
-  const BracketOptionPage({super.key});
+  final Map<String, dynamic>? cbData;
+
+  const BracketOptionPage({super.key, this.cbData});
 
   @override
   State<BracketOptionPage> createState() => _BracketOptionPageState();
@@ -11,6 +14,17 @@ class BracketOptionPage extends StatefulWidget {
 
 class _BracketOptionPageState extends State<BracketOptionPage> {
   bool click = true;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+  bool isToggling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize click state based on CB data
+    if (widget.cbData != null) {
+      click = !(widget.cbData!['isOn'] ?? true);
+    }
+  }
 
   void buttonClick() {
     setState(() {
@@ -18,11 +32,60 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
     });
   }
 
+  Future<void> _toggleCircuitBreaker() async {
+    if (widget.cbData == null || isToggling) return;
+
+    setState(() {
+      isToggling = true;
+    });
+
+    try {
+      // Toggle the isOn field in Firebase
+      final newIsOnValue = !(widget.cbData!['isOn'] ?? true);
+
+      await _dbRef
+          .child('circuitBreakers')
+          .child(widget.cbData!['scbId'])
+          .update({
+        'isOn': newIsOnValue,
+      });
+
+      // Update local state
+      setState(() {
+        widget.cbData!['isOn'] = newIsOnValue;
+        click = !newIsOnValue; // Invert for UI display
+        isToggling = false;
+      });
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(newIsOnValue
+              ? 'Circuit Breaker turned ON'
+              : 'Circuit Breaker turned OFF'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        isToggling = false;
+      });
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error toggling circuit breaker: $e'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color(0xFFF2F2F2),
-
       body: SingleChildScrollView(
         child: Container(
           height: MediaQuery.of(context).size.height,
@@ -30,7 +93,10 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               // Stack: Button to On/Off the Circuit Breaker
-              BracketOnOff(click: !click, onPress: buttonClick), // height = 280
+              BracketOnOff(
+                click: click,
+                onPress: isToggling ? () {} : _toggleCircuitBreaker,
+              ), // height = 280
               // Options
               Container(
                 height: MediaQuery.of(context).size.height * .6,
@@ -94,7 +160,7 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                             Row(
                                               children: [
                                                 Text(
-                                                  "230.00",
+                                                  "${widget.cbData?['voltage'] ?? 0}",
                                                   style: TextStyle(
                                                     fontSize: 30,
                                                     fontWeight: FontWeight.w500,
@@ -135,34 +201,35 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                                   ],
                                                   borderRadius:
                                                       BorderRadius.circular(
-                                                        5,
-                                                      ), // Match button shape
+                                                    5,
+                                                  ), // Match button shape
                                                 ),
                                                 child: ElevatedButton(
                                                   style: ButtonStyle(
                                                     padding:
-                                                        MaterialStateProperty.all<
-                                                          EdgeInsets
-                                                        >(EdgeInsets.zero),
+                                                        MaterialStateProperty
+                                                            .all<EdgeInsets>(
+                                                                EdgeInsets
+                                                                    .zero),
                                                     foregroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Colors.white),
+                                                        MaterialStateProperty
+                                                            .all<Color>(
+                                                                Colors.white),
                                                     backgroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Color(0xFF2ECC71)),
-                                                    shape:
-                                                        MaterialStateProperty.all<
-                                                          RoundedRectangleBorder
-                                                        >(
-                                                          RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  5,
-                                                                ),
-                                                          ),
+                                                        MaterialStateProperty
+                                                            .all<Color>(Color(
+                                                                0xFF2ECC71)),
+                                                    shape: MaterialStateProperty
+                                                        .all<
+                                                            RoundedRectangleBorder>(
+                                                      RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(
+                                                          5,
                                                         ),
+                                                      ),
+                                                    ),
                                                   ),
                                                   child: Text(
                                                     'View Voltage Settings',
@@ -172,6 +239,7 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                                     Navigator.pushNamed(
                                                       context,
                                                       '/voltagesetting',
+                                                      arguments: widget.cbData,
                                                     );
                                                   },
                                                 ),
@@ -213,7 +281,7 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                             Row(
                                               children: [
                                                 Text(
-                                                  "00.04",
+                                                  "${widget.cbData?['current'] ?? 0}",
                                                   style: TextStyle(
                                                     fontSize: 30,
                                                     fontWeight: FontWeight.w500,
@@ -266,7 +334,7 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                             Row(
                                               children: [
                                                 Text(
-                                                  "3231.2",
+                                                  "${widget.cbData?['power'] ?? 0}",
                                                   style: TextStyle(
                                                     fontSize: 30,
                                                     fontWeight: FontWeight.w500,
@@ -318,7 +386,7 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                             Row(
                                               children: [
                                                 Text(
-                                                  "37.1",
+                                                  "${widget.cbData?['temperature'] ?? 0}",
                                                   style: TextStyle(
                                                     fontSize: 30,
                                                     fontWeight: FontWeight.w500,
@@ -370,7 +438,7 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                             Row(
                                               children: [
                                                 Text(
-                                                  "0.50",
+                                                  "${widget.cbData?['energy'] ?? 0}",
                                                   style: TextStyle(
                                                     fontSize: 30,
                                                     fontWeight: FontWeight.w500,
@@ -435,34 +503,35 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                                   ],
                                                   borderRadius:
                                                       BorderRadius.circular(
-                                                        5,
-                                                      ), // Match button shape
+                                                    5,
+                                                  ), // Match button shape
                                                 ),
                                                 child: ElevatedButton(
                                                   style: ButtonStyle(
                                                     padding:
-                                                        MaterialStateProperty.all<
-                                                          EdgeInsets
-                                                        >(EdgeInsets.zero),
+                                                        MaterialStateProperty
+                                                            .all<EdgeInsets>(
+                                                                EdgeInsets
+                                                                    .zero),
                                                     foregroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Colors.white),
+                                                        MaterialStateProperty
+                                                            .all<Color>(
+                                                                Colors.white),
                                                     backgroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Color(0xFF2ECC71)),
-                                                    shape:
-                                                        MaterialStateProperty.all<
-                                                          RoundedRectangleBorder
-                                                        >(
-                                                          RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  5,
-                                                                ),
-                                                          ),
+                                                        MaterialStateProperty
+                                                            .all<Color>(Color(
+                                                                0xFF2ECC71)),
+                                                    shape: MaterialStateProperty
+                                                        .all<
+                                                            RoundedRectangleBorder>(
+                                                      RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(
+                                                          5,
                                                         ),
+                                                      ),
+                                                    ),
                                                   ),
                                                   child: Text('View Logs'),
                                                   onPressed: () {
@@ -526,34 +595,35 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                                   ],
                                                   borderRadius:
                                                       BorderRadius.circular(
-                                                        5,
-                                                      ), // Match button shape
+                                                    5,
+                                                  ), // Match button shape
                                                 ),
                                                 child: ElevatedButton(
                                                   style: ButtonStyle(
                                                     padding:
-                                                        MaterialStateProperty.all<
-                                                          EdgeInsets
-                                                        >(EdgeInsets.zero),
+                                                        MaterialStateProperty
+                                                            .all<EdgeInsets>(
+                                                                EdgeInsets
+                                                                    .zero),
                                                     foregroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Colors.white),
+                                                        MaterialStateProperty
+                                                            .all<Color>(
+                                                                Colors.white),
                                                     backgroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Color(0xFF2ECC71)),
-                                                    shape:
-                                                        MaterialStateProperty.all<
-                                                          RoundedRectangleBorder
-                                                        >(
-                                                          RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  5,
-                                                                ),
-                                                          ),
+                                                        MaterialStateProperty
+                                                            .all<Color>(Color(
+                                                                0xFF2ECC71)),
+                                                    shape: MaterialStateProperty
+                                                        .all<
+                                                            RoundedRectangleBorder>(
+                                                      RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(
+                                                          5,
                                                         ),
+                                                      ),
+                                                    ),
                                                   ),
                                                   child: Text('View History'),
                                                   onPressed: () {
@@ -614,40 +684,42 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                                   ],
                                                   borderRadius:
                                                       BorderRadius.circular(
-                                                        5,
-                                                      ), // Match button shape
+                                                    5,
+                                                  ), // Match button shape
                                                 ),
                                                 child: ElevatedButton(
                                                   style: ButtonStyle(
                                                     padding:
-                                                        MaterialStateProperty.all<
-                                                          EdgeInsets
-                                                        >(EdgeInsets.zero),
+                                                        MaterialStateProperty
+                                                            .all<EdgeInsets>(
+                                                                EdgeInsets
+                                                                    .zero),
                                                     foregroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Colors.white),
+                                                        MaterialStateProperty
+                                                            .all<Color>(
+                                                                Colors.white),
                                                     backgroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Color(0xFF2ECC71)),
-                                                    shape:
-                                                        MaterialStateProperty.all<
-                                                          RoundedRectangleBorder
-                                                        >(
-                                                          RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  5,
-                                                                ),
-                                                          ),
+                                                        MaterialStateProperty
+                                                            .all<Color>(Color(
+                                                                0xFF2ECC71)),
+                                                    shape: MaterialStateProperty
+                                                        .all<
+                                                            RoundedRectangleBorder>(
+                                                      RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(
+                                                          5,
                                                         ),
+                                                      ),
+                                                    ),
                                                   ),
                                                   child: Text('View About'),
                                                   onPressed: () {
                                                     Navigator.pushNamed(
                                                       context,
                                                       '/about',
+                                                      arguments: widget.cbData,
                                                     );
                                                   },
                                                 ),

@@ -3,8 +3,18 @@ import 'package:flutter/material.dart';
 class TemperatureOption extends StatefulWidget {
   final void Function(bool) onPress;
   final Widget divider;
+  double? initialValue;
+  String? initialAction;
+  final Function(double value, String action)? onChanged;
 
-  TemperatureOption({super.key, required this.onPress, required this.divider});
+  TemperatureOption({
+    super.key,
+    required this.onPress,
+    required this.divider,
+    this.initialValue,
+    this.initialAction,
+    this.onChanged,
+  });
 
   @override
   State<TemperatureOption> createState() => _TemperatureOptionState();
@@ -12,8 +22,11 @@ class TemperatureOption extends StatefulWidget {
 
 class _TemperatureOptionState extends State<TemperatureOption> {
   bool isExpanded = false;
-  double _temperatureValue = 50;
-  String _temperatureChosen = 'Trip';
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +67,7 @@ class _TemperatureOptionState extends State<TemperatureOption> {
             Row(
               children: [
                 Text(
-                  _temperatureValue.toStringAsFixed(1),
+                  widget.initialValue!.toStringAsFixed(1),
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight:
@@ -72,7 +85,7 @@ class _TemperatureOptionState extends State<TemperatureOption> {
               ],
             ),
             Text(
-              _temperatureChosen.toString(),
+              widget.initialAction!.toString(),
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: isExpanded ? FontWeight.bold : FontWeight.normal,
@@ -107,7 +120,7 @@ class _TemperatureOptionState extends State<TemperatureOption> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _temperatureValue.toStringAsFixed(1),
+                      widget.initialValue!.toStringAsFixed(1),
                       style: TextStyle(
                         fontSize: 35,
                         fontWeight: FontWeight.w400,
@@ -131,10 +144,11 @@ class _TemperatureOptionState extends State<TemperatureOption> {
                       iconSize: 28,
                       onPressed: () {
                         setState(() {
-                          _temperatureValue = (_temperatureValue - 1).clamp(
+                          widget.initialValue = (widget.initialValue! - 1).clamp(
                             0,
                             55,
                           );
+                          widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
                         });
                       },
                     ),
@@ -146,7 +160,7 @@ class _TemperatureOptionState extends State<TemperatureOption> {
                           context,
                         ).copyWith(thumbShape: SliderComponentShape.noThumb),
                         child: Slider(
-                          value: _temperatureValue,
+                          value: widget.initialValue!,
                           min: 0,
                           max: 55,
                           divisions: 110,
@@ -154,7 +168,8 @@ class _TemperatureOptionState extends State<TemperatureOption> {
                           inactiveColor: Colors.grey[300],
                           onChanged: (value) {
                             setState(() {
-                              _temperatureValue = value;
+                              widget.initialValue = value;
+                              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
                             });
                           },
                         ),
@@ -166,10 +181,11 @@ class _TemperatureOptionState extends State<TemperatureOption> {
                       iconSize: 28,
                       onPressed: () {
                         setState(() {
-                          _temperatureValue = (_temperatureValue + 1).clamp(
+                          widget.initialValue = (widget.initialValue! + 1).clamp(
                             0,
                             55,
                           );
+                          widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
                         });
                       },
                     ),
@@ -211,19 +227,20 @@ class _TemperatureOptionState extends State<TemperatureOption> {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           selectedColor: Color(0xFF2ECC71),
-          selected: (_temperatureChosen == 'Off'),
+          selected: (widget.initialAction! == 'Off'),
           onSelected: (bool value) {
             setState(() {
-              _temperatureChosen = 'Off';
+              widget.initialAction = 'Off';
+              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
             });
           },
           label: Text(
             'Off',
             style: TextStyle(
               color:
-                  (_temperatureChosen == 'Off') ? Colors.white : Colors.black,
+                  (widget.initialAction! == 'Off') ? Colors.white : Colors.black,
               fontWeight:
-                  (_temperatureChosen == 'Off')
+                  (widget.initialAction! == 'Off')
                       ? FontWeight.w900
                       : FontWeight.normal,
             ),
@@ -234,9 +251,9 @@ class _TemperatureOptionState extends State<TemperatureOption> {
             'Alarm',
             style: TextStyle(
               color:
-                  (_temperatureChosen == 'Alarm') ? Colors.white : Colors.black,
+                  (widget.initialAction! == 'Alarm') ? Colors.white : Colors.black,
               fontWeight:
-                  (_temperatureChosen == 'Alarm')
+                  (widget.initialAction! == 'Alarm')
                       ? FontWeight.bold
                       : FontWeight.normal,
             ),
@@ -247,10 +264,11 @@ class _TemperatureOptionState extends State<TemperatureOption> {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           selectedColor: Color(0xFF2ECC71),
-          selected: (_temperatureChosen == 'Alarm'),
+          selected: (widget.initialAction! == 'Alarm'),
           onSelected: (bool value) {
             setState(() {
-              _temperatureChosen = 'Alarm';
+              widget.initialAction = 'Alarm';
+              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
             });
           },
         ),
@@ -259,9 +277,9 @@ class _TemperatureOptionState extends State<TemperatureOption> {
             'Trip',
             style: TextStyle(
               color:
-                  (_temperatureChosen == 'Trip') ? Colors.white : Colors.black,
+                  (widget.initialAction! == 'Trip') ? Colors.white : Colors.black,
               fontWeight:
-                  (_temperatureChosen == 'Trip')
+                  (widget.initialAction! == 'Trip')
                       ? FontWeight.bold
                       : FontWeight.normal,
             ),
@@ -272,10 +290,11 @@ class _TemperatureOptionState extends State<TemperatureOption> {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           selectedColor: Color(0xFF2ECC71),
-          selected: (_temperatureChosen == 'Trip'),
+          selected: (widget.initialAction! == 'Trip'),
           onSelected: (bool value) {
             setState(() {
-              _temperatureChosen = 'Trip';
+              widget.initialAction = 'Trip';
+              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
             });
           },
         ),

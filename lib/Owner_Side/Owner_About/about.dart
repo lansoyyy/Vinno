@@ -6,6 +6,9 @@ class About extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get circuit breaker data from route arguments
+    final Map<String, dynamic>? cbData =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     return Scaffold(
       body: SingleChildScrollView(
         child: Container(
@@ -29,7 +32,6 @@ class About extends StatelessWidget {
                           height: 135,
                         ),
                       ),
-
                       Padding(
                         padding: const EdgeInsets.only(
                           left: 30,
@@ -39,7 +41,7 @@ class About extends StatelessWidget {
                         ),
                         child: GestureDetector(
                           onTap: () {
-                            Navigator.pushNamed(context, '/bracketoption');
+                            Navigator.pop(context);
                           },
                           child: Icon(
                             Icons.arrow_back_ios,
@@ -68,7 +70,6 @@ class About extends StatelessWidget {
                       ),
                     ],
                   ),
-
                   Padding(
                     padding: EdgeInsets.zero,
                     child: Image(
@@ -76,7 +77,6 @@ class About extends StatelessWidget {
                       height: 380,
                     ),
                   ),
-
                   Container(
                     width: MediaQuery.of(context).size.width,
                     padding: EdgeInsets.symmetric(horizontal: 50),
@@ -86,7 +86,7 @@ class About extends StatelessWidget {
                         // SCB ID
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
                               'SCB ID: ',
                               style: TextStyle(
@@ -96,7 +96,7 @@ class About extends StatelessWidget {
                             ),
                             Expanded(
                               child: Text(
-                                'Example ID',
+                                cbData?['scbId'] ?? 'N/A',
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 softWrap: true,
@@ -112,7 +112,7 @@ class About extends StatelessWidget {
                         // SCB Name
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
                               'SCB Name: ',
                               style: TextStyle(
@@ -122,7 +122,7 @@ class About extends StatelessWidget {
                             ),
                             Expanded(
                               child: Text(
-                                'Circuit Breaker Name',
+                                cbData?['scbName'] ?? 'N/A',
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 softWrap: true,
@@ -138,7 +138,7 @@ class About extends StatelessWidget {
                         // Amperage
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
                               'Amperage: ',
                               style: TextStyle(
@@ -148,7 +148,7 @@ class About extends StatelessWidget {
                             ),
                             Expanded(
                               child: Text(
-                                '200 A',
+                                '${cbData?['circuitBreakerRating'] ?? 0} A',
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 softWrap: true,
@@ -164,7 +164,7 @@ class About extends StatelessWidget {
                         // WiFi Connectivity
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
                               'WiFi Connectivity: ',
                               style: TextStyle(
@@ -174,7 +174,7 @@ class About extends StatelessWidget {
                             ),
                             Expanded(
                               child: Text(
-                                'Example WiFi Name',
+                                cbData?['wifiName'] ?? 'N/A',
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 softWrap: true,
@@ -190,7 +190,7 @@ class About extends StatelessWidget {
                         // Number of Trips
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
                               'Number of Trips: ',
                               style: TextStyle(
@@ -200,7 +200,7 @@ class About extends StatelessWidget {
                             ),
                             Expanded(
                               child: Text(
-                                '3 Trips',
+                                '0 Trips', // TODO: Implement trip counting
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 softWrap: true,

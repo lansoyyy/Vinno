@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:wifi_scan/wifi_scan.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
 
 class WifiConnectionList extends StatefulWidget {
   const WifiConnectionList({super.key});
@@ -16,11 +17,53 @@ class _WifiConnectionListState extends State<WifiConnectionList> {
   String? connectedSSID;
   List<WiFiAccessPoint> wifiNetworks = [];
   bool canScan = false;
+  
+  // Circuit breaker data from previous screen
+  Map<String, dynamic>? cbData;
+  double? userLatitude;
+  double? userLongitude;
 
   @override
   void initState() {
     super.initState();
+    _getUserLocation();
     _checkPermissionsAndScan();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get data passed from previous screen
+    if (cbData == null) {
+      cbData = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    }
+  }
+
+  Future<void> _getUserLocation() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always) {
+        Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+        setState(() {
+          userLatitude = position.latitude;
+          userLongitude = position.longitude;
+        });
+      }
+    } catch (e) {
+      print('Error getting location: $e');
+      // Set default location if error
+      setState(() {
+        userLatitude = 0.0;
+        userLongitude = 0.0;
+      });
+    }
   }
 
   Future<void> _checkPermissionsAndScan() async {
@@ -223,12 +266,29 @@ class _WifiConnectionListState extends State<WifiConnectionList> {
       selectedNetwork = networkName;
     });
 
-    // You now have both SSID and password
-    print('SSID: $networkName');
-    print('Password: $password');
-
-    // TODO: Send WiFi credentials to your circuit breaker device
-    // Example: _sendCredentialsToDevice(networkName, password);
+    // Prepare all circuit breaker data
+    final Map<String, dynamic> completeData = {
+      // Data from add_new_cb screen
+      'scbName': cbData?['scbName'] ?? '',
+      'scbId': cbData?['scbId'] ?? '',
+      'circuitBreakerRating': cbData?['circuitBreakerRating'] ?? 0,
+      
+      // WiFi data
+      'wifiName': networkName,
+      'wifiPassword': password,
+      
+      // User location
+      'latitude': userLatitude ?? 0.0,
+      'longitude': userLongitude ?? 0.0,
+      
+      // Initial values for other fields
+      'isOn': true,
+      'voltage': 0,
+      'current': 0,
+      'temperature': 0,
+      'power': 0,
+      'energy': 0,
+    };
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -237,9 +297,13 @@ class _WifiConnectionListState extends State<WifiConnectionList> {
       ),
     );
 
-    // Navigate to next step
+    // Navigate to next step with complete data
     Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pushNamed(context, '/search_connection');
+      Navigator.pushNamed(
+        context,
+        '/search_connection',
+        arguments: completeData,
+      );
     });
   }
 

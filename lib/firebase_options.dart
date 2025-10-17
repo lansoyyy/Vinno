@@ -55,8 +55,9 @@ class DefaultFirebaseOptions {
   static const FirebaseOptions android = FirebaseOptions(
       apiKey: "AIzaSyDqHu7dHEthxoEzYZyLhB80GEzzlsx3oGo",
       authDomain: "vinno-52914.firebaseapp.com",
+      databaseURL: "https://vinno-52914-default-rtdb.firebaseio.com",
       projectId: "vinno-52914",
       storageBucket: "vinno-52914.firebasestorage.app",
       messagingSenderId: "814192024841",
-      appId: "1:814192024841:web:ad5ef34dd0e701f2fa07d8");
+      appId: "1:814192024841:web:69fea9a5a6e074a8fa07d8");
 }

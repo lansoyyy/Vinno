@@ -181,7 +181,51 @@ class _AddNewCbState extends State<AddNewCb> {
                   children: [
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/wifi_connection_list');
+                        // Validate inputs
+                        if (cbName.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Please enter SCB Name')),
+                          );
+                          return;
+                        }
+                        if (cbID.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Please enter SCB ID')),
+                          );
+                          return;
+                        }
+                        if (ampValue.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Please enter circuit breaker rating')),
+                          );
+                          return;
+                        }
+
+                        // Parse amperage value
+                        final rating = double.tryParse(ampValue.text.trim());
+                        if (rating == null || rating <= 0 || rating > 200) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Please enter a valid rating (1-200 A)')),
+                          );
+                          return;
+                        }
+
+                        // Navigate with data
+                        Navigator.pushNamed(
+                          context,
+                          '/wifi_connection_list',
+                          arguments: {
+                            'scbName': cbName.text.trim(),
+                            'scbId': cbID.text.trim(),
+                            'circuitBreakerRating': rating,
+                          },
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green.shade300,

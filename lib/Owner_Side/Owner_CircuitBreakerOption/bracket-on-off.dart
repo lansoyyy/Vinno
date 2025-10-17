@@ -48,9 +48,7 @@ class BracketOnOff extends StatelessWidget {
                 },
                 child: Icon(Icons.arrow_back_ios, color: Colors.white),
               ),
-
               SizedBox(width: 15),
-
               Text(
                 'Circuit Breaker Name',
                 textAlign: TextAlign.center,

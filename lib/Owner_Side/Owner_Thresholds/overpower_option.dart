@@ -3,8 +3,18 @@ import 'package:flutter/material.dart';
 class OverpowerSetting extends StatefulWidget {
   final void Function(bool) onPress;
   final Widget divider;
+  double? initialValue;
+  String? initialAction;
+  final Function(double value, String action)? onChanged;
 
-  OverpowerSetting({super.key, required this.onPress, required this.divider});
+  OverpowerSetting({
+    super.key,
+    required this.onPress,
+    required this.divider,
+    this.initialValue,
+    this.initialAction,
+    this.onChanged,
+  });
 
   @override
   State<OverpowerSetting> createState() => _OverpowerSettingState();
@@ -12,8 +22,11 @@ class OverpowerSetting extends StatefulWidget {
 
 class _OverpowerSettingState extends State<OverpowerSetting> {
   bool isExpanded = false;
-  double _overpowerValue = 3450.0;
-  String _overpowerChosen = 'Trip';
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +67,7 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
             Row(
               children: [
                 Text(
-                  _overpowerValue.toStringAsFixed(1),
+                  widget.initialValue!.toStringAsFixed(1),
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight:
@@ -72,7 +85,7 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
               ],
             ),
             Text(
-              _overpowerChosen.toString(),
+              widget.initialAction!.toString(),
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: isExpanded ? FontWeight.bold : FontWeight.normal,
@@ -107,7 +120,7 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _overpowerValue.toStringAsFixed(1),
+                      widget.initialValue!.toStringAsFixed(1),
                       style: TextStyle(
                         fontSize: 35,
                         fontWeight: FontWeight.w400,
@@ -131,10 +144,11 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                       iconSize: 28,
                       onPressed: () {
                         setState(() {
-                          _overpowerValue = (_overpowerValue - 1).clamp(
+                          widget.initialValue = (widget.initialValue! - 1).clamp(
                             0,
                             4000,
                           );
+                          widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
                         });
                       },
                     ),
@@ -146,7 +160,7 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                           context,
                         ).copyWith(thumbShape: SliderComponentShape.noThumb),
                         child: Slider(
-                          value: _overpowerValue,
+                          value: widget.initialValue!,
                           min: 0,
                           max: 4000,
                           divisions: 4000,
@@ -154,7 +168,8 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                           inactiveColor: Colors.grey[300],
                           onChanged: (value) {
                             setState(() {
-                              _overpowerValue = value;
+                              widget.initialValue = value;
+                              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
                             });
                           },
                         ),
@@ -166,10 +181,11 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                       iconSize: 28,
                       onPressed: () {
                         setState(() {
-                          _overpowerValue = (_overpowerValue + 1).clamp(
+                          widget.initialValue = (widget.initialValue! + 1).clamp(
                             0,
                             4000,
                           );
+                          widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
                         });
                       },
                     ),
@@ -211,18 +227,19 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           selectedColor: Color(0xFF2ECC71),
-          selected: (_overpowerChosen == 'Off'),
+          selected: (widget.initialAction! == 'Off'),
           onSelected: (bool value) {
             setState(() {
-              _overpowerChosen = 'Off';
+              widget.initialAction = 'Off';
+              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
             });
           },
           label: Text(
             'Off',
             style: TextStyle(
-              color: (_overpowerChosen == 'Off') ? Colors.white : Colors.black,
+              color: (widget.initialAction! == 'Off') ? Colors.white : Colors.black,
               fontWeight:
-                  (_overpowerChosen == 'Off')
+                  (widget.initialAction! == 'Off')
                       ? FontWeight.w900
                       : FontWeight.normal,
             ),
@@ -233,9 +250,9 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
             'Alarm',
             style: TextStyle(
               color:
-                  (_overpowerChosen == 'Alarm') ? Colors.white : Colors.black,
+                  (widget.initialAction! == 'Alarm') ? Colors.white : Colors.black,
               fontWeight:
-                  (_overpowerChosen == 'Alarm')
+                  (widget.initialAction! == 'Alarm')
                       ? FontWeight.bold
                       : FontWeight.normal,
             ),
@@ -246,10 +263,11 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           selectedColor: Color(0xFF2ECC71),
-          selected: (_overpowerChosen == 'Alarm'),
+          selected: (widget.initialAction! == 'Alarm'),
           onSelected: (bool value) {
             setState(() {
-              _overpowerChosen = 'Alarm';
+              widget.initialAction = 'Alarm';
+              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
             });
           },
         ),
@@ -257,9 +275,9 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
           label: Text(
             'Trip',
             style: TextStyle(
-              color: (_overpowerChosen == 'Trip') ? Colors.white : Colors.black,
+              color: (widget.initialAction! == 'Trip') ? Colors.white : Colors.black,
               fontWeight:
-                  (_overpowerChosen == 'Trip')
+                  (widget.initialAction! == 'Trip')
                       ? FontWeight.bold
                       : FontWeight.normal,
             ),
@@ -270,10 +288,11 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           selectedColor: Color(0xFF2ECC71),
-          selected: (_overpowerChosen == 'Trip'),
+          selected: (widget.initialAction! == 'Trip'),
           onSelected: (bool value) {
             setState(() {
-              _overpowerChosen = 'Trip';
+              widget.initialAction = 'Trip';
+              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
             });
           },
         ),
