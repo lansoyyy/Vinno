@@ -126,6 +126,104 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
     // Can be implemented with local state management if needed
   }
 
+  // Show delete confirmation dialog
+  Future<void> _showDeleteConfirmation() async {
+    final count = selectedBracketNames.length;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Delete Circuit Breakers'),
+          content: Text(
+            count == 1
+                ? 'Are you sure you want to delete this circuit breaker?'
+                : 'Are you sure you want to delete $count circuit breakers?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _deleteSelectedCircuitBreakers();
+    }
+  }
+
+  // Delete selected circuit breakers from Firebase
+  Future<void> _deleteSelectedCircuitBreakers() async {
+    final selectedIds = bracketList
+        .where((cb) => selectedBracketNames.contains(cb['scbName']))
+        .map((cb) => cb['scbId'])
+        .toList();
+
+    if (selectedIds.isEmpty) return;
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFF2ECC71),
+        ),
+      ),
+    );
+
+    try {
+      // Delete each circuit breaker
+      for (String scbId in selectedIds) {
+        await _dbRef.child('circuitBreakers').child(scbId).remove();
+      }
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            selectedIds.length == 1
+                ? 'Circuit breaker deleted successfully'
+                : '${selectedIds.length} circuit breakers deleted successfully',
+          ),
+          backgroundColor: Color(0xFF2ECC71),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Clear selection and exit edit mode
+      setState(() {
+        selectedBracketNames.clear();
+        isEditMode = false;
+      });
+    } catch (e) {
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting circuit breakers: $e'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   // add new Bracket
   @override
   Widget build(BuildContext context) {
@@ -248,26 +346,14 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
 
                               // Delete Button
                               GestureDetector(
-                                onTap: () async {
-                                  // Delete selected circuit breakers from Firebase
-                                  for (var cb in bracketList) {
-                                    if (selectedBracketNames
-                                        .contains(cb['scbName'])) {
-                                      await _dbRef
-                                          .child('circuitBreakers')
-                                          .child(cb['scbId'])
-                                          .remove();
-                                    }
-                                  }
-                                  setState(() {
-                                    selectedBracketNames.clear();
-                                  });
-                                },
+                                onTap: selectedBracketNames.isEmpty
+                                    ? null
+                                    : () => _showDeleteConfirmation(),
                                 child: Icon(
                                   Icons.delete_rounded,
                                   size: 30,
                                   color: selectedBracketNames.isEmpty
-                                      ? Colors.black.withOpacity(0.7)
+                                      ? Colors.black.withOpacity(0.3)
                                       : Colors.red,
                                 ),
                               ),
