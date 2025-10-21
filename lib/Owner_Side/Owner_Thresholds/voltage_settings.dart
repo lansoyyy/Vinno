@@ -6,6 +6,7 @@ import 'package:smart_cb_1/Owner_Side/Owner_Thresholds/overvoltage_option.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Thresholds/temperature_option.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Thresholds/undervoltage_option.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:smart_cb_1/services/threshold_monitor_service.dart';
 
 class VoltageSettingsPage extends StatefulWidget {
   const VoltageSettingsPage({super.key});
@@ -92,6 +93,60 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
     return action[0].toUpperCase() + action.substring(1).toLowerCase();
   }
 
+  // Log all threshold changes to Firestore
+  Future<void> _logThresholdChanges() async {
+    if (cbData == null) return;
+
+    final scbId = cbData!['scbId'];
+    final scbName = cbData!['scbName'];
+
+    // Log each threshold change
+    await ThresholdMonitorService.logThresholdChange(
+      scbId: scbId,
+      scbName: scbName,
+      thresholdType: 'Overvoltage',
+      value: overvoltageValue,
+      action: overvoltageAction,
+      enabled: overvoltageAction != 'Off',
+    );
+
+    await ThresholdMonitorService.logThresholdChange(
+      scbId: scbId,
+      scbName: scbName,
+      thresholdType: 'Undervoltage',
+      value: undervoltageValue,
+      action: undervoltageAction,
+      enabled: undervoltageAction != 'Off',
+    );
+
+    await ThresholdMonitorService.logThresholdChange(
+      scbId: scbId,
+      scbName: scbName,
+      thresholdType: 'Overcurrent',
+      value: overcurrentValue,
+      action: overcurrentAction,
+      enabled: overcurrentAction != 'Off',
+    );
+
+    await ThresholdMonitorService.logThresholdChange(
+      scbId: scbId,
+      scbName: scbName,
+      thresholdType: 'Overpower',
+      value: overpowerValue,
+      action: overpowerAction,
+      enabled: overpowerAction != 'Off',
+    );
+
+    await ThresholdMonitorService.logThresholdChange(
+      scbId: scbId,
+      scbName: scbName,
+      thresholdType: 'Temperature',
+      value: temperatureValue,
+      action: temperatureAction,
+      enabled: temperatureAction != 'Off',
+    );
+  }
+
   void ExpandTile(bool expanded) {
     setState(() {
       isExpanded = expanded;
@@ -143,6 +198,9 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
       setState(() {
         isSaving = false;
       });
+
+      // Log threshold changes to Firestore
+      await _logThresholdChanges();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Threshold settings saved successfully')),

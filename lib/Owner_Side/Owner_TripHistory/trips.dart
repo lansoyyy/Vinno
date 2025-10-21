@@ -1,6 +1,8 @@
 // ignore_for_file: must_be_immutable
 
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class Trips extends StatefulWidget {
   const Trips({super.key});
@@ -10,6 +12,19 @@ class Trips extends StatefulWidget {
 }
 
 class _TripsState extends State<Trips> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  String? scbId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get scbId from route arguments
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args != null) {
+      scbId = args['scbId'];
+    }
+  }
+
   List TripDates = [
     // ["December 20, 2025", "9:00 PM"],
     // ["December 19, 2025", "8:45 PM"],
@@ -39,10 +54,39 @@ class _TripsState extends State<Trips> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    
     return Scaffold(
       backgroundColor: Color(0xFFFFFFFF),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _firestore
+            .collection('tripHistory')
+            .where('userId', isEqualTo: user?.uid)
+            .where('scbId', isEqualTo: scbId)
+            .orderBy('timestamp', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: CircularProgressIndicator(color: Color(0xFF2ECC71)),
+            );
+          }
 
-      body: Stack(
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                  'No trip events recorded yet',
+                  style: TextStyle(fontSize: 15),
+                ),
+              ),
+            );
+          }
+
+          final trips = snapshot.data!.docs;
+
+          return Stack(
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
@@ -50,17 +94,7 @@ class _TripsState extends State<Trips> {
               scrollDirection: Axis.vertical,
               child: Column(
                 children: [
-                  TripDates.isEmpty
-                      ? Padding(
-                          padding: EdgeInsets.all(20),
-                          child: Center(
-                            child: Text(
-                              'Nothing to Show Yet',
-                              style: TextStyle(fontSize: 15),
-                            ),
-                          ),
-                        )
-                      : Table(
+                  Table(
                           border: TableBorder.symmetric(
                             inside: BorderSide(color: Colors.transparent),
                             outside: BorderSide(color: Colors.transparent),
@@ -99,20 +133,34 @@ class _TripsState extends State<Trips> {
                             ),
 
                             // Data Rows
-                            for (var row in TripDates)
+                            for (var doc in trips)
                               TableRow(
                                 children: [
                                   Padding(
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 8,
                                     ),
-                                    child: Text(
-                                      row[0],
-                                      textAlign: TextAlign.left,
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w400,
-                                      ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _formatDate(doc['timestamp']),
+                                          textAlign: TextAlign.left,
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${doc['type']} (${doc['action'].toString().toUpperCase()})',
+                                          textAlign: TextAlign.left,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w300,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                   Padding(
@@ -120,7 +168,7 @@ class _TripsState extends State<Trips> {
                                       vertical: 8,
                                     ),
                                     child: Text(
-                                      row[1],
+                                      _formatTime(doc['timestamp']),
                                       textAlign: TextAlign.left,
                                       style: const TextStyle(
                                         fontSize: 15,
@@ -139,8 +187,24 @@ class _TripsState extends State<Trips> {
             ),
           ),
         ],
+      );
+        },
       ),
     );
+  }
+
+  String _formatDate(Timestamp? timestamp) {
+    if (timestamp == null) return 'Unknown';
+    final date = timestamp.toDate();
+    return '${date.month}/${date.day}/${date.year}';
+  }
+
+  String _formatTime(Timestamp? timestamp) {
+    if (timestamp == null) return 'Unknown';
+    final date = timestamp.toDate();
+    final hour = date.hour > 12 ? date.hour - 12 : date.hour;
+    final period = date.hour >= 12 ? 'PM' : 'AM';
+    return '${hour}:${date.minute.toString().padLeft(2, '0')} $period';
   }
 }
 

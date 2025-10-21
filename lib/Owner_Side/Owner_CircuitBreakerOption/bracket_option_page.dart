@@ -538,6 +538,7 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                                     Navigator.pushNamed(
                                                       context,
                                                       '/history',
+                                                      arguments: widget.cbData,
                                                     );
                                                   },
                                                 ),
@@ -630,6 +631,7 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                                     Navigator.pushNamed(
                                                       context,
                                                       '/nav_history',
+                                                      arguments: widget.cbData,
                                                     );
                                                   },
                                                 ),

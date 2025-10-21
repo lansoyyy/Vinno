@@ -1,6 +1,8 @@
 // ignore_for_file: must_be_immutable
 
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class Warnings extends StatefulWidget {
   const Warnings({super.key});
@@ -10,6 +12,19 @@ class Warnings extends StatefulWidget {
 }
 
 class _WarningsState extends State<Warnings> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  String? scbId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get scbId from route arguments
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args != null) {
+      scbId = args['scbId'];
+    }
+  }
+
   List WarningDates = [
     ["December 20, 2025", "9:00 PM"],
     ["December 19, 2025", "8:45 PM"],
@@ -39,10 +54,39 @@ class _WarningsState extends State<Warnings> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    
     return Scaffold(
       backgroundColor: Color(0xFFFFFFFF),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _firestore
+            .collection('alarmHistory')
+            .where('userId', isEqualTo: user?.uid)
+            .where('scbId', isEqualTo: scbId)
+            .orderBy('timestamp', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: CircularProgressIndicator(color: Color(0xFF2ECC71)),
+            );
+          }
 
-      body: Stack(
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                  'No alarm events recorded yet',
+                  style: TextStyle(fontSize: 15),
+                ),
+              ),
+            );
+          }
+
+          final alarms = snapshot.data!.docs;
+
+          return Stack(
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
@@ -50,17 +94,7 @@ class _WarningsState extends State<Warnings> {
               scrollDirection: Axis.vertical,
               child: Column(
                 children: [
-                  WarningDates.isEmpty
-                      ? Padding(
-                          padding: EdgeInsets.all(20),
-                          child: Center(
-                            child: Text(
-                              'Nothing to Show Yet',
-                              style: TextStyle(fontSize: 15),
-                            ),
-                          ),
-                        )
-                      : Table(
+                  Table(
                           border: TableBorder.symmetric(
                             inside: BorderSide(color: Colors.transparent),
                             outside: BorderSide(color: Colors.transparent),
@@ -99,20 +133,34 @@ class _WarningsState extends State<Warnings> {
                             ),
 
                             // Data Rows
-                            for (var row in WarningDates)
+                            for (var doc in alarms)
                               TableRow(
                                 children: [
                                   Padding(
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 8,
                                     ),
-                                    child: Text(
-                                      row[0],
-                                      textAlign: TextAlign.left,
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w400,
-                                      ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _formatDate(doc['timestamp']),
+                                          textAlign: TextAlign.left,
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${doc['type']} (ALARM)',
+                                          textAlign: TextAlign.left,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w300,
+                                            color: Colors.orange[700],
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                   Padding(
@@ -120,7 +168,7 @@ class _WarningsState extends State<Warnings> {
                                       vertical: 8,
                                     ),
                                     child: Text(
-                                      row[1],
+                                      _formatTime(doc['timestamp']),
                                       textAlign: TextAlign.left,
                                       style: const TextStyle(
                                         fontSize: 15,
@@ -138,8 +186,24 @@ class _WarningsState extends State<Warnings> {
             ),
           ),
         ],
+      );
+        },
       ),
     );
+  }
+
+  String _formatDate(Timestamp? timestamp) {
+    if (timestamp == null) return 'Unknown';
+    final date = timestamp.toDate();
+    return '${date.month}/${date.day}/${date.year}';
+  }
+
+  String _formatTime(Timestamp? timestamp) {
+    if (timestamp == null) return 'Unknown';
+    final date = timestamp.toDate();
+    final hour = date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
+    final period = date.hour >= 12 ? 'PM' : 'AM';
+    return '${hour}:${date.minute.toString().padLeft(2, '0')} $period';
   }
 }
 

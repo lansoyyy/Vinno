@@ -53,7 +53,6 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         leading: Icon(Icons.electric_meter_outlined, size: 30),
         tilePadding: EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -93,11 +92,9 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
             ),
           ],
         ),
-
         backgroundColor: Color(0xFF2ECC71),
         textColor: Colors.white,
         iconColor: Colors.white,
-
         children: [
           Container(
             width: double.infinity,
@@ -113,9 +110,7 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                   ),
                 ),
-
                 widget.divider,
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -144,15 +139,16 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
                       iconSize: 28,
                       onPressed: () {
                         setState(() {
-                          widget.initialValue = (widget.initialValue! - 1).clamp(
+                          widget.initialValue =
+                              (widget.initialValue! - 1).clamp(
                             0,
                             300,
                           );
-                          widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
+                          widget.onChanged?.call(
+                              widget.initialValue!, widget.initialAction!);
                         });
                       },
                     ),
-
                     SizedBox(
                       width: 170,
                       child: SliderTheme(
@@ -169,29 +165,30 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
                           onChanged: (value) {
                             setState(() {
                               widget.initialValue = value;
-                              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
+                              widget.onChanged?.call(
+                                  widget.initialValue!, widget.initialAction!);
                             });
                           },
                         ),
                       ),
                     ),
-
                     IconButton(
                       icon: Icon(Icons.add),
                       iconSize: 28,
                       onPressed: () {
                         setState(() {
-                          widget.initialValue = (widget.initialValue! + 1).clamp(
+                          widget.initialValue =
+                              (widget.initialValue! + 1).clamp(
                             0,
                             300,
                           );
-                          widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
+                          widget.onChanged?.call(
+                              widget.initialValue!, widget.initialAction!);
                         });
                       },
                     ),
                   ],
                 ),
-
                 SizedBox(
                   height: 50,
                   child: Container(
@@ -231,18 +228,19 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
           onSelected: (bool value) {
             setState(() {
               widget.initialAction = 'Off';
-              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
+              widget.onChanged
+                  ?.call(widget.initialValue!, widget.initialAction!);
             });
           },
           label: Text(
             'Off',
             style: TextStyle(
-              color:
-                  (widget.initialAction! == 'Off') ? Colors.white : Colors.black,
-              fontWeight:
-                  (widget.initialAction! == 'Off')
-                      ? FontWeight.w900
-                      : FontWeight.normal,
+              color: (widget.initialAction! == 'Off')
+                  ? Colors.white
+                  : Colors.black,
+              fontWeight: (widget.initialAction! == 'Off')
+                  ? FontWeight.w900
+                  : FontWeight.normal,
             ),
           ),
         ),
@@ -250,14 +248,12 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
           label: Text(
             'Alarm',
             style: TextStyle(
-              color:
-                  (widget.initialAction! == 'Alarm')
-                      ? Colors.white
-                      : Colors.black,
-              fontWeight:
-                  (widget.initialAction! == 'Alarm')
-                      ? FontWeight.bold
-                      : FontWeight.normal,
+              color: (widget.initialAction! == 'Alarm')
+                  ? Colors.white
+                  : Colors.black,
+              fontWeight: (widget.initialAction! == 'Alarm')
+                  ? FontWeight.bold
+                  : FontWeight.normal,
             ),
           ),
           showCheckmark: false,
@@ -270,7 +266,8 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
           onSelected: (bool value) {
             setState(() {
               widget.initialAction = 'Alarm';
-              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
+              widget.onChanged
+                  ?.call(widget.initialValue!, widget.initialAction!);
             });
           },
         ),
@@ -278,12 +275,12 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
           label: Text(
             'Trip',
             style: TextStyle(
-              color:
-                  (widget.initialAction! == 'Trip') ? Colors.white : Colors.black,
-              fontWeight:
-                  (widget.initialAction! == 'Trip')
-                      ? FontWeight.bold
-                      : FontWeight.normal,
+              color: (widget.initialAction! == 'Trip')
+                  ? Colors.white
+                  : Colors.black,
+              fontWeight: (widget.initialAction! == 'Trip')
+                  ? FontWeight.bold
+                  : FontWeight.normal,
             ),
           ),
           showCheckmark: false,
@@ -296,7 +293,8 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
           onSelected: (bool value) {
             setState(() {
               widget.initialAction = 'Trip';
-              widget.onChanged?.call(widget.initialValue!, widget.initialAction!);
+              widget.onChanged
+                  ?.call(widget.initialValue!, widget.initialAction!);
             });
           },
         ),

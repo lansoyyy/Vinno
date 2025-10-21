@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:smart_cb_1/services/threshold_monitor_service.dart';
 
 class NavHome extends StatefulWidget {
   const NavHome({super.key});
@@ -8,10 +9,154 @@ class NavHome extends StatefulWidget {
 }
 
 class _NavHomeState extends State<NavHome> {
+  final ThresholdMonitorService _thresholdService = ThresholdMonitorService();
+
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
+        // Threshold Monitor Overlay
+        StreamBuilder<List<ThresholdViolation>>(
+          stream: _thresholdService.monitorThresholds(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return SizedBox.shrink();
+            }
+
+            final violations = snapshot.data!;
+            
+            // Execute actions for violations
+            for (var violation in violations) {
+              if (_thresholdService.shouldNotify(violation)) {
+                _thresholdService.executeThresholdAction(violation);
+              }
+            }
+
+            // Show alert banner at top
+            return Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Material(
+                elevation: 8,
+                color: Colors.transparent,
+                child: Container(
+                  margin: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red, width: 2),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(10),
+                            topRight: Radius.circular(10),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.warning_amber_rounded,
+                                color: Colors.white, size: 24),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Threshold Alert (${violations.length})',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        constraints: BoxConstraints(maxHeight: 200),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.all(8),
+                          itemCount: violations.length,
+                          itemBuilder: (context, index) {
+                            final violation = violations[index];
+                            return Container(
+                              margin: EdgeInsets.only(bottom: 8),
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: violation.color.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    violation.icon,
+                                    color: violation.color,
+                                    size: 24,
+                                  ),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          violation.scbName,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          violation.message,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: violation.color,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      violation.action.toUpperCase(),
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
         Align(
           alignment: Alignment.bottomCenter,
           child: SizedBox(

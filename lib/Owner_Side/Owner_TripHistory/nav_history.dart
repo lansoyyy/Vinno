@@ -11,8 +11,15 @@ class NavHistory extends StatefulWidget {
 }
 
 class _NavHistoryState extends State<NavHistory> {
+  Map<String, dynamic>? cbData;
+
   @override
   Widget build(BuildContext context) {
+    // Get circuit breaker data from route arguments
+    if (cbData == null) {
+      cbData =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    }
     return DefaultTabController(
       length: 2, // must match the number of tabs
       child: Scaffold(
@@ -49,19 +56,14 @@ class _NavHistoryState extends State<NavHistory> {
                             children: [
                               GestureDetector(
                                 onTap: () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/bracketoption',
-                                  );
+                                  Navigator.pop(context);
                                 },
                                 child: Icon(
                                   Icons.arrow_back_ios,
                                   color: Colors.white,
                                 ),
                               ),
-
                               SizedBox(width: 15),
-
                               Text(
                                 'Trip History',
                                 textAlign: TextAlign.center,
@@ -76,7 +78,7 @@ class _NavHistoryState extends State<NavHistory> {
                         ),
                         SizedBox(height: 5),
                         Text(
-                          'Circuit Breaker #',
+                          cbData?['scbName'] ?? 'Circuit Breaker',
                           style: TextStyle(
                             fontSize: 30,
                             fontWeight: FontWeight.bold,
