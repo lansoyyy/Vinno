@@ -47,7 +47,6 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color(0xFFFFFFFF),
-
       body: SingleChildScrollView(
         child: Container(
           height: MediaQuery.of(context).size.height,
@@ -146,9 +145,8 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                                 selectedBracketNames.clear();
 
                                 //Copy of BracketList
-                                originalBracketList = bracketList
-                                    .map((e) => [...e])
-                                    .toList();
+                                originalBracketList =
+                                    bracketList.map((e) => [...e]).toList();
                               });
                             },
                             child: Icon(Icons.edit, size: 30),
@@ -185,10 +183,9 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                                               bracketList.length
                                           ? Icons.check_box_rounded
                                           : Icons
-                                                .check_box_outline_blank_rounded,
+                                              .check_box_outline_blank_rounded,
                                       size: 30,
-                                      color:
-                                          selectedBracketNames.length ==
+                                      color: selectedBracketNames.length ==
                                               bracketList.length
                                           ? Colors.black.withOpacity(0.7)
                                           : Colors.black.withOpacity(0.5),
@@ -196,16 +193,15 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                                     Text(
                                       'All',
                                       style: TextStyle(
-                                        color:
-                                            selectedBracketNames.length ==
+                                        color: selectedBracketNames.length ==
                                                 bracketList.length
                                             ? Colors.black
                                             : Colors.black.withOpacity(0.5),
                                         fontWeight:
                                             selectedBracketNames.length ==
-                                                bracketList.length
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
+                                                    bracketList.length
+                                                ? FontWeight.bold
+                                                : FontWeight.normal,
                                       ),
                                     ),
                                   ],
@@ -305,33 +301,33 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                   bracketList.isEmpty
                       // No Brackets
                       ? isEditMode
-                            ? Text('')
-                            : Center(
-                                child: Container(
-                                  height:
-                                      MediaQuery.of(context).size.height * 0.5,
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        'No brackets available.',
+                          ? Text('')
+                          : Center(
+                              child: Container(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.5,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'No brackets available.',
+                                      style: TextStyle(fontSize: 20),
+                                    ),
+                                    SizedBox(height: 20),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 50,
+                                      ),
+                                      child: Text(
+                                        'Tap the plus ‘ + ‘ icon to start adding a new Smart Bracket ',
+                                        textAlign: TextAlign.center,
                                         style: TextStyle(fontSize: 20),
                                       ),
-                                      SizedBox(height: 20),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 50,
-                                        ),
-                                        child: Text(
-                                          'Tap the plus ‘ + ‘ icon to start adding a new Smart Bracket ',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(fontSize: 20),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                              )
+                              ),
+                            )
                       // There are Brackets
                       : Expanded(
                           child: ListView.builder(
@@ -363,7 +359,6 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                         ),
                 ],
               ),
-
               if (isEditMode)
                 Align(
                   alignment: Alignment.bottomCenter,
@@ -409,14 +404,12 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                               backgroundColor: MaterialStateProperty.all<Color>(
                                 Colors.white,
                               ),
-                              shape:
-                                  MaterialStateProperty.all<
-                                    RoundedRectangleBorder
-                                  >(
-                                    RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(50),
-                                    ),
-                                  ),
+                              shape: MaterialStateProperty.all<
+                                  RoundedRectangleBorder>(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                              ),
                             ),
                             child: Text('Cancel', textAlign: TextAlign.center),
                             onPressed: () {
@@ -459,14 +452,12 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                               backgroundColor: MaterialStateProperty.all<Color>(
                                 Colors.white,
                               ),
-                              shape:
-                                  MaterialStateProperty.all<
-                                    RoundedRectangleBorder
-                                  >(
-                                    RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(50),
-                                    ),
-                                  ),
+                              shape: MaterialStateProperty.all<
+                                  RoundedRectangleBorder>(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                              ),
                             ),
                             child: Text('Save', textAlign: TextAlign.center),
                             onPressed: () {
@@ -482,7 +473,6 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                     ),
                   ),
                 ),
-
               if (!isEditMode)
                 // NAVIGATION ---------------------------------------------------------------------------------------------
                 NavHome(),

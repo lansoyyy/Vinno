@@ -6,6 +6,7 @@ import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Current/current_main.dart
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Power/power_main.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Temperature/temperature_main.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Voltage/voltage_main.dart';
+import 'package:smart_cb_1/services/statistics_service.dart';
 
 class StatisticsMenu extends StatefulWidget {
   const StatisticsMenu({super.key});
@@ -15,6 +16,25 @@ class StatisticsMenu extends StatefulWidget {
 }
 
 class _StatisticsMenuState extends State<StatisticsMenu> {
+  final StatisticsService _statisticsService = StatisticsService();
+  Map<String, double> currentReadings = {};
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCurrentReadings();
+  }
+
+  void _fetchCurrentReadings() {
+    _statisticsService.getCurrentReadings().listen((readings) {
+      setState(() {
+        currentReadings = readings;
+        isLoading = false;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -41,7 +61,6 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                           height: 135,
                         ),
                       ),
-
                       Padding(
                         padding: const EdgeInsets.only(
                           left: 30,
@@ -85,7 +104,6 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                       ),
                     ],
                   ),
-
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 30,
@@ -108,7 +126,6 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                             ],
                             borderRadius: BorderRadius.circular(12),
                           ),
-
                           child: Column(
                             children: [
                               Row(
@@ -123,26 +140,28 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-
-                                  Text(
-                                    '200kWh',
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 38,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
+                                  isLoading
+                                      ? CircularProgressIndicator(
+                                          color: Color(0xFF2ECC71),
+                                          strokeWidth: 2,
+                                        )
+                                      : Text(
+                                          '${currentReadings['energy']?.toStringAsFixed(1) ?? '0.0'}kWh',
+                                          style: TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 38,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
                                 ],
                               ),
-
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Container(
-                                    width:
-                                        MediaQuery.of(context).size.width *
+                                    width: MediaQuery.of(context).size.width *
                                         0.45,
                                     child: Text(
                                       'Shows total energy used in kWh.',
@@ -152,30 +171,27 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                                       ),
                                     ),
                                   ),
-
                                   ElevatedButton(
                                     style: ButtonStyle(
                                       padding:
                                           MaterialStateProperty.all<EdgeInsets>(
-                                            EdgeInsets.zero,
-                                          ),
+                                        EdgeInsets.zero,
+                                      ),
                                       foregroundColor:
                                           MaterialStateProperty.all<Color>(
-                                            Colors.white,
-                                          ),
+                                        Colors.white,
+                                      ),
                                       backgroundColor:
                                           MaterialStateProperty.all<Color>(
-                                            Color(0xFF2ECC71),
-                                          ),
-                                      shape:
-                                          MaterialStateProperty.all<
-                                            RoundedRectangleBorder
-                                          >(
-                                            RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(30),
-                                            ),
-                                          ),
+                                        Color(0xFF2ECC71),
+                                      ),
+                                      shape: MaterialStateProperty.all<
+                                          RoundedRectangleBorder>(
+                                        RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(30),
+                                        ),
+                                      ),
                                     ),
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
@@ -208,7 +224,6 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                       ],
                     ),
                   ),
-
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 30,
@@ -256,7 +271,6 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
-
                                             Icon(
                                               Icons.power,
                                               size: 30,
@@ -264,9 +278,7 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                                             ),
                                           ],
                                         ),
-
                                         SizedBox(height: 5),
-
                                         Text(
                                           'Monitor your home’s voltage level.',
                                           textAlign: TextAlign.justify,
@@ -277,30 +289,25 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                                         ),
                                       ],
                                     ),
-
                                     ElevatedButton(
                                       style: ButtonStyle(
-                                        padding:
-                                            MaterialStateProperty.all<
-                                              EdgeInsets
-                                            >(EdgeInsets.zero),
+                                        padding: MaterialStateProperty.all<
+                                            EdgeInsets>(EdgeInsets.zero),
                                         foregroundColor:
                                             MaterialStateProperty.all<Color>(
-                                              Colors.white,
-                                            ),
+                                          Colors.white,
+                                        ),
                                         backgroundColor:
                                             MaterialStateProperty.all<Color>(
-                                              Color(0xFF2ECC71),
-                                            ),
-                                        shape:
-                                            MaterialStateProperty.all<
-                                              RoundedRectangleBorder
-                                            >(
-                                              RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(30),
-                                              ),
-                                            ),
+                                          Color(0xFF2ECC71),
+                                        ),
+                                        shape: MaterialStateProperty.all<
+                                            RoundedRectangleBorder>(
+                                          RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(30),
+                                          ),
+                                        ),
                                       ),
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(
@@ -370,7 +377,6 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
-
                                             Icon(
                                               Icons.flash_on,
                                               size: 30,
@@ -389,30 +395,25 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                                         ),
                                       ],
                                     ),
-
                                     ElevatedButton(
                                       style: ButtonStyle(
-                                        padding:
-                                            MaterialStateProperty.all<
-                                              EdgeInsets
-                                            >(EdgeInsets.zero),
+                                        padding: MaterialStateProperty.all<
+                                            EdgeInsets>(EdgeInsets.zero),
                                         foregroundColor:
                                             MaterialStateProperty.all<Color>(
-                                              Colors.white,
-                                            ),
+                                          Colors.white,
+                                        ),
                                         backgroundColor:
                                             MaterialStateProperty.all<Color>(
-                                              Color(0xFF2ECC71),
-                                            ),
-                                        shape:
-                                            MaterialStateProperty.all<
-                                              RoundedRectangleBorder
-                                            >(
-                                              RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(30),
-                                              ),
-                                            ),
+                                          Color(0xFF2ECC71),
+                                        ),
+                                        shape: MaterialStateProperty.all<
+                                            RoundedRectangleBorder>(
+                                          RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(30),
+                                          ),
+                                        ),
                                       ),
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(
@@ -445,7 +446,6 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                       ],
                     ),
                   ),
-
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 30,
@@ -493,7 +493,6 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
-
                                             Icon(
                                               Icons.battery_charging_full,
                                               size: 30,
@@ -501,9 +500,7 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                                             ),
                                           ],
                                         ),
-
                                         SizedBox(height: 5),
-
                                         Text(
                                           'View total power consumption.',
                                           textAlign: TextAlign.justify,
@@ -514,30 +511,25 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                                         ),
                                       ],
                                     ),
-
                                     ElevatedButton(
                                       style: ButtonStyle(
-                                        padding:
-                                            MaterialStateProperty.all<
-                                              EdgeInsets
-                                            >(EdgeInsets.zero),
+                                        padding: MaterialStateProperty.all<
+                                            EdgeInsets>(EdgeInsets.zero),
                                         foregroundColor:
                                             MaterialStateProperty.all<Color>(
-                                              Colors.white,
-                                            ),
+                                          Colors.white,
+                                        ),
                                         backgroundColor:
                                             MaterialStateProperty.all<Color>(
-                                              Color(0xFF2ECC71),
-                                            ),
-                                        shape:
-                                            MaterialStateProperty.all<
-                                              RoundedRectangleBorder
-                                            >(
-                                              RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(30),
-                                              ),
-                                            ),
+                                          Color(0xFF2ECC71),
+                                        ),
+                                        shape: MaterialStateProperty.all<
+                                            RoundedRectangleBorder>(
+                                          RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(30),
+                                          ),
+                                        ),
                                       ),
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(
@@ -607,7 +599,6 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
-
                                             Icon(
                                               Icons.device_thermostat,
                                               size: 30,
@@ -626,30 +617,25 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
                                         ),
                                       ],
                                     ),
-
                                     ElevatedButton(
                                       style: ButtonStyle(
-                                        padding:
-                                            MaterialStateProperty.all<
-                                              EdgeInsets
-                                            >(EdgeInsets.zero),
+                                        padding: MaterialStateProperty.all<
+                                            EdgeInsets>(EdgeInsets.zero),
                                         foregroundColor:
                                             MaterialStateProperty.all<Color>(
-                                              Colors.white,
-                                            ),
+                                          Colors.white,
+                                        ),
                                         backgroundColor:
                                             MaterialStateProperty.all<Color>(
-                                              Color(0xFF2ECC71),
-                                            ),
-                                        shape:
-                                            MaterialStateProperty.all<
-                                              RoundedRectangleBorder
-                                            >(
-                                              RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(30),
-                                              ),
-                                            ),
+                                          Color(0xFF2ECC71),
+                                        ),
+                                        shape: MaterialStateProperty.all<
+                                            RoundedRectangleBorder>(
+                                          RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(30),
+                                          ),
+                                        ),
                                       ),
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(

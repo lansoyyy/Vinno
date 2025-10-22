@@ -4,6 +4,7 @@ import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Consumption/consumption_m
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Consumption/consumption_week.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Consumption/consumption_year.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/statistics_menu.dart';
+import 'package:smart_cb_1/services/statistics_service.dart';
 
 class ConsumptionMain extends StatefulWidget {
   const ConsumptionMain({super.key});
@@ -13,130 +14,118 @@ class ConsumptionMain extends StatefulWidget {
 }
 
 class _ConsumptionMainState extends State<ConsumptionMain> {
-  // for line graph
-  final List<double> sampleValues = [
-    12.5,
-    15.0,
-    18.2,
-    20.0,
-    22.5,
-    19.0,
-    17.5,
-    21.0,
-    23.3,
-    24.0,
-    18.5,
-    16.0,
-    19.5,
-    21.2,
-    22.8,
-    20.5,
-    18.0,
-    17.3,
-    19.0,
-    20.7,
-  ];
-
-  final Map<String, Map<String, double>> breakerData = {
-    'All Breakers': {
-      'Mon': 20.3,
-      'Tue': 22,
-      'Wed': 53,
-      'Thu': 5.34,
-      'Fri': 55,
-      'Sat': 45,
-      'Sun': 45,
-    },
-
-    'Circuit Breaker in the Kitchen': {
-      'Mon': 6,
-      'Tue': 8,
-      'Wed': 5,
-      'Thu': 7,
-      'Fri': 9,
-      'Sat': 9,
-      'Sun': 6,
-    },
-    'Breaker 2': {
-      'Mon': 4,
-      'Tue': 5,
-      'Wed': 7,
-      'Thu': 6,
-      'Fri': 8,
-      'Sat': 7,
-      'Sun': 5,
-    },
-    'Breaker 3': {
-      'Mon': 9,
-      'Tue': 8,
-      'Wed': 8,
-      'Thu': 9,
-      'Fri': 7,
-      'Sat': 8,
-      'Sun': 9,
-    },
-    'Living Room Breaker': {
-      'Mon': 7.2,
-      'Tue': 8.1,
-      'Wed': 6.5,
-      'Thu': 7.9,
-      'Fri': 8.3,
-      'Sat': 9.0,
-      'Sun': 7.8,
-    },
-
-    'Bedroom Breaker': {
-      'Mon': 5.5,
-      'Tue': 5.7,
-      'Wed': 5.9,
-      'Thu': 6.0,
-      'Fri': 6.1,
-      'Sat': 6.2,
-      'Sun': 5.8,
-    },
-
-    'Air Conditioner Breaker': {
-      'Mon': 10.5,
-      'Tue': 11.2,
-      'Wed': 9.8,
-      'Thu': 12.0,
-      'Fri': 11.5,
-      'Sat': 13.4,
-      'Sun': 12.8,
-    },
-
-    'Washer & Dryer Breaker': {
-      'Mon': 8.0,
-      'Tue': 7.4,
-      'Wed': 8.2,
-      'Thu': 8.9,
-      'Fri': 9.1,
-      'Sat': 9.3,
-      'Sun': 8.7,
-    },
-
-    'Garage Breaker': {
-      'Mon': 3.2,
-      'Tue': 3.8,
-      'Wed': 4.0,
-      'Thu': 3.5,
-      'Fri': 3.7,
-      'Sat': 4.2,
-      'Sun': 4.1,
-    },
-
-    'Outdoor Lights Breaker': {
-      'Mon': 2.0,
-      'Tue': 2.2,
-      'Wed': 2.1,
-      'Thu': 2.3,
-      'Fri': 2.0,
-      'Sat': 2.4,
-      'Sun': 2.2,
-    },
-  };
-
+  final StatisticsService _statisticsService = StatisticsService();
+  Map<String, Map<String, double>> breakerData = {};
+  Map<String, Map<String, double>> dayData = {};
+  Map<String, Map<String, double>> weekData = {};
+  Map<String, Map<String, double>> monthData = {};
+  Map<String, Map<String, double>> yearData = {};
+  List<Map<String, dynamic>> circuitBreakers = [];
   String selectedBreaker = 'All Breakers';
+  bool isLoading = true;
+  Map<String, double> currentReadings = {};
+  Map<String, double> highestReadings = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    try {
+      // Fetch circuit breakers
+      _statisticsService.getCircuitBreakers().listen((breakers) {
+        setState(() {
+          circuitBreakers = breakers;
+          _initializeBreakerData();
+        });
+      });
+
+      // Fetch current readings
+      _statisticsService.getCurrentReadings().listen((readings) {
+        setState(() {
+          currentReadings = readings;
+        });
+      });
+
+      // Fetch highest readings
+      final highest = await _statisticsService.getHighestReadings();
+      setState(() {
+        highestReadings = highest;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching data: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _initializeBreakerData() {
+    // Initialize with "All Breakers" option
+    breakerData['All Breakers'] = {};
+
+    // Add individual circuit breakers
+    for (var breaker in circuitBreakers) {
+      breakerData[breaker['scbName']] = {};
+    }
+
+    // Fetch data for each breaker for all periods
+    _fetchBreakerData('All Breakers', 'day');
+    _fetchBreakerData('All Breakers', 'week');
+    _fetchBreakerData('All Breakers', 'month');
+    _fetchBreakerData('All Breakers', 'year');
+
+    for (var breaker in circuitBreakers) {
+      _fetchBreakerData(breaker['scbName'], 'day');
+      _fetchBreakerData(breaker['scbName'], 'week');
+      _fetchBreakerData(breaker['scbName'], 'month');
+      _fetchBreakerData(breaker['scbName'], 'year');
+    }
+  }
+
+  Future<void> _fetchBreakerData(String breakerName, String period) async {
+    try {
+      Map<String, dynamic> data;
+      if (breakerName == 'All Breakers') {
+        data = await _statisticsService.getAggregatedData(period);
+      } else {
+        final breaker = circuitBreakers.firstWhere(
+          (b) => b['scbName'] == breakerName,
+          orElse: () => {'scbId': ''},
+        );
+        data = await _statisticsService.getHistoricalData(
+            breaker['scbId'], period);
+      }
+
+      final processedData = <String, double>{};
+      data.forEach((key, value) {
+        processedData[key] = value.toDouble();
+      });
+
+      setState(() {
+        switch (period) {
+          case 'day':
+            dayData[breakerName] = processedData;
+            break;
+          case 'week':
+            weekData[breakerName] = processedData;
+            break;
+          case 'month':
+            monthData[breakerName] = processedData;
+            break;
+          case 'year':
+            yearData[breakerName] = processedData;
+            break;
+        }
+      });
+    } catch (e) {
+      print('Error fetching breaker data: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -146,7 +135,6 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
         body: SingleChildScrollView(
           child: Container(
             height: MediaQuery.of(context).size.height,
-
             color: Color(0xFFF6F6F6),
             child: Column(
               children: [
@@ -165,7 +153,6 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
                         height: 170,
                       ),
                     ),
-
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 30),
                       child: Padding(
@@ -186,7 +173,6 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
                         ),
                       ),
                     ),
-
                     Padding(
                       padding: const EdgeInsets.only(top: 50, bottom: 30),
                       child: Center(
@@ -202,60 +188,71 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
                                 color: Colors.white,
                               ),
                             ),
-
-                            DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: selectedBreaker,
-                                dropdownColor: Colors.white,
-                                alignment: Alignment.center,
-                                iconEnabledColor: Colors.white,
-                                // Style applies to selected value fallback only
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 17,
-                                ),
-                                items: breakerData.keys.map((breaker) {
-                                  return DropdownMenuItem<String>(
-                                    value: breaker,
+                            isLoading || breakerData.isEmpty
+                                ? Container(
+                                    width: 200,
+                                    height: 30,
                                     child: Center(
-                                      child: Text(
-                                        breaker,
-                                        style: const TextStyle(
-                                          color: Colors.black,
-                                        ), // dropdown items
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
                                       ),
                                     ),
-                                  );
-                                }).toList(),
-
-                                // This builder customizes the selected item display separately
-                                selectedItemBuilder: (BuildContext context) {
-                                  return breakerData.keys.map((breaker) {
-                                    return Center(
-                                      child: Text(
-                                        breaker,
-                                        style: const TextStyle(
-                                          color: Colors
-                                              .white, // selected value text color
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                  )
+                                : DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: selectedBreaker,
+                                      dropdownColor: Colors.white,
+                                      alignment: Alignment.center,
+                                      iconEnabledColor: Colors.white,
+                                      // Style applies to selected value fallback only
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 17,
                                       ),
-                                    );
-                                  }).toList();
-                                },
+                                      items: breakerData.keys.map((breaker) {
+                                        return DropdownMenuItem<String>(
+                                          value: breaker,
+                                          child: Center(
+                                            child: Text(
+                                              breaker,
+                                              style: const TextStyle(
+                                                color: Colors.black,
+                                              ), // dropdown items
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
 
-                                onChanged: (value) {
-                                  setState(() => selectedBreaker = value!);
-                                },
-                              ),
-                            ),
+                                      // This builder customizes the selected item display separately
+                                      selectedItemBuilder:
+                                          (BuildContext context) {
+                                        return breakerData.keys.map((breaker) {
+                                          return Center(
+                                            child: Text(
+                                              breaker,
+                                              style: const TextStyle(
+                                                color: Colors
+                                                    .white, // selected value text color
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          );
+                                        }).toList();
+                                      },
+
+                                      onChanged: (value) {
+                                        setState(
+                                            () => selectedBreaker = value!);
+                                      },
+                                    ),
+                                  ),
                           ],
                         ),
                       ),
                     ),
                   ],
                 ),
-
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 30),
                   child: TabBar(
@@ -269,7 +266,6 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
                       fontWeight: FontWeight.w600,
                     ),
                     unselectedLabelColor: Colors.grey,
-
                     indicatorColor: Colors.green,
                     tabs: [
                       Tab(text: 'DAY'),
@@ -279,25 +275,21 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
                     ],
                   ),
                 ),
-
                 SizedBox(
                   height: MediaQuery.of(context).size.height * 0.4,
                   child: TabBarView(
                     children: [
-                      ConsumptionDay(dailyData: breakerData[selectedBreaker]!),
+                      ConsumptionDay(dailyData: dayData[selectedBreaker] ?? {}),
                       ConsumptionWeek(
-                        weeklyData: breakerData[selectedBreaker]!,
+                        weeklyData: weekData[selectedBreaker] ?? {},
                       ),
                       ConsumptionMonth(
-                        monthlyData: breakerData[selectedBreaker]!,
-                      ),
+                          monthlyData: monthData[selectedBreaker] ?? {}),
                       ConsumptionYear(
-                        yearlyData: breakerData[selectedBreaker]!,
-                      ),
+                          yearlyData: yearData[selectedBreaker] ?? {}),
                     ],
                   ),
                 ),
-
                 Expanded(
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 30, vertical: 10),
@@ -313,7 +305,6 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
                       ],
                       borderRadius: BorderRadius.circular(12),
                     ),
-
                     child: Column(
                       children: [
                         // cURRENT READING
@@ -353,18 +344,24 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
                                   ),
                                 ],
                               ),
-
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    '200',
-                                    style: TextStyle(
-                                      color: Color(0xFF555555),
-                                      fontSize: 25,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
+                                  isLoading
+                                      ? CircularProgressIndicator(
+                                          color: Color(0xFF2ECC71),
+                                          strokeWidth: 2,
+                                        )
+                                      : Text(
+                                          currentReadings['energy']
+                                                  ?.toStringAsFixed(1) ??
+                                              '0.0',
+                                          style: TextStyle(
+                                            color: Color(0xFF555555),
+                                            fontSize: 25,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
                                   Text(
                                     ' kwh',
                                     style: TextStyle(
@@ -418,18 +415,24 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
                                   ),
                                 ],
                               ),
-
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    '999',
-                                    style: TextStyle(
-                                      color: Color(0xFF555555),
-                                      fontSize: 25,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
+                                  isLoading
+                                      ? CircularProgressIndicator(
+                                          color: Color(0xFF2ECC71),
+                                          strokeWidth: 2,
+                                        )
+                                      : Text(
+                                          highestReadings['energy']
+                                                  ?.toStringAsFixed(1) ??
+                                              '0.0',
+                                          style: TextStyle(
+                                            color: Color(0xFF555555),
+                                            fontSize: 25,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
                                   Text(
                                     ' kwh',
                                     style: TextStyle(

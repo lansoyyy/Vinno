@@ -96,7 +96,7 @@ class TemperatureDay extends StatelessWidget {
                   sideTitles: SideTitles(
                     showTitles: true,
                     getTitlesWidget: (double value, TitleMeta meta) {
-                      final day = dailyData.keys.elementAt(value.toInt());
+                      final day = limitedData.keys.elementAt(value.toInt());
                       return SideTitleWidget(
                         axisSide: meta.axisSide,
                         child: SizedBox(

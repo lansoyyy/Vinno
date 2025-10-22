@@ -11,6 +11,57 @@ class ConsumptionDay extends StatelessWidget {
     final barGroups = <BarChartGroupData>[];
     int index = 0;
 
+    // Handle empty data case
+    if (dailyData.isEmpty) {
+      return Scaffold(
+        backgroundColor: Color(0xFFF6F6F6),
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          title: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 0),
+            child: const Text(
+              'Consumption (kWh)',
+              style: TextStyle(
+                fontSize: 20,
+                color: Color(0xFF176639),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          automaticallyImplyLeading: false,
+        ),
+        body: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.4,
+            padding: EdgeInsets.only(top: 100, bottom: 20, left: 20, right: 20),
+            decoration: BoxDecoration(
+              color: Color(0xFFFFFFFF),
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0xFF000000).withOpacity(0.25),
+                  offset: Offset(0, 4),
+                  blurRadius: 2,
+                  spreadRadius: 0,
+                ),
+              ],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Text(
+                'No data available',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     final limitedData = Map<String, double>.fromEntries(
       dailyData.entries.skip((dailyData.length - 7).clamp(0, dailyData.length)),
     );
@@ -19,9 +70,7 @@ class ConsumptionDay extends StatelessWidget {
     final double minY = values.reduce((a, b) => a < b ? a : b);
     final double maxY = values.reduce((a, b) => a > b ? a : b);
     double adjustedMinY = (minY - 10).clamp(0, double.infinity).floorToDouble();
-    ; // 5 units padding below
     double adjustedMaxY = (maxY * 1.25).ceil().toDouble();
-    ; // 5 units padding above
 
     if (adjustedMinY == adjustedMaxY) adjustedMaxY = adjustedMinY + 10;
 
@@ -96,7 +145,7 @@ class ConsumptionDay extends StatelessWidget {
                   sideTitles: SideTitles(
                     showTitles: true,
                     getTitlesWidget: (double value, TitleMeta meta) {
-                      final day = dailyData.keys.elementAt(value.toInt());
+                      final day = limitedData.keys.elementAt(value.toInt());
                       return SideTitleWidget(
                         axisSide: meta.axisSide,
                         child: SizedBox(
