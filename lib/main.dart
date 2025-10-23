@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:smart_cb_1/auth/auth_wrapper.dart';
 import 'package:smart_cb_1/IntroAndRegistration/initial_setup.dart';
 import 'package:smart_cb_1/IntroAndRegistration/intro_screen.dart';
@@ -47,6 +48,7 @@ void main() async {
     name: 'vinno-52914',
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await GetStorage.init();
 
   runApp(const MyApp());
 }

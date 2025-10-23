@@ -24,7 +24,7 @@ class _NavHomeState extends State<NavHome> {
             }
 
             final violations = snapshot.data!;
-            
+
             // Execute actions for violations
             for (var violation in violations) {
               if (_thresholdService.shouldNotify(violation)) {

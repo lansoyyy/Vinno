@@ -7,6 +7,7 @@ import 'package:smart_cb_1/Owner_Side/Owner_ConnectedDevices/admin_list.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_ConnectedDevices/dialog_boxes.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_ConnectedDevices/staff_list.dart';
 import 'package:smart_cb_1/services/firebase_auth_service.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 class ConnectedDevices extends StatefulWidget {
   const ConnectedDevices({super.key});
@@ -32,6 +33,7 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
     _loadData();
   }
 
+  String adminId = '';
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
@@ -40,27 +42,60 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
     try {
       // Get current user (owner)
       User? currentUser = _authService.currentUser;
-      if (currentUser != null) {
-        // Get owner data
-        DocumentSnapshot? ownerDoc =
-            await _authService.getUserData(currentUser.uid);
-        if (ownerDoc != null && ownerDoc.exists) {
-          ownerData = ownerDoc.data() as Map<String, dynamic>;
+
+      if (box.read('accountType') == 'Admin') {
+        DocumentSnapshot? userData =
+            await FirebaseAuthService().getUserData(currentUser!.uid);
+        if (currentUser != null) {
+          adminId = currentUser!.uid;
+          // Get owner data
+          DocumentSnapshot? ownerDoc =
+              await _authService.getUserData(userData!['createdBy']);
+          if (ownerDoc != null && ownerDoc.exists) {
+            ownerData = ownerDoc.data() as Map<String, dynamic>;
+          }
+
+          // Get admins created by this owner
+          QuerySnapshot adminSnapshot =
+              await _authService.getAdmins(userData!['createdBy']);
+          adminList = adminSnapshot.docs
+              .map((doc) =>
+                  {'id': doc.id, ...doc.data() as Map<String, dynamic>})
+              .toList();
+
+          // Get staff created by this owner
+          QuerySnapshot staffSnapshot =
+              await _authService.getStaff(userData!['createdBy']);
+          staffList = staffSnapshot.docs
+              .map((doc) =>
+                  {'id': doc.id, ...doc.data() as Map<String, dynamic>})
+              .toList();
         }
+      } else {
+        if (currentUser != null) {
+          // Get owner data
+          DocumentSnapshot? ownerDoc =
+              await _authService.getUserData(currentUser.uid);
+          if (ownerDoc != null && ownerDoc.exists) {
+            ownerData = ownerDoc.data() as Map<String, dynamic>;
+          }
 
-        // Get admins created by this owner
-        QuerySnapshot adminSnapshot =
-            await _authService.getAdmins(currentUser.uid);
-        adminList = adminSnapshot.docs
-            .map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>})
-            .toList();
+          // Get admins created by this owner
+          QuerySnapshot adminSnapshot =
+              await _authService.getAdmins(currentUser.uid);
+          adminList = adminSnapshot.docs
+              .map((doc) =>
+                  {'id': doc.id, ...doc.data() as Map<String, dynamic>})
+              .toList();
 
-        // Get staff created by this owner
-        QuerySnapshot staffSnapshot =
-            await _authService.getStaff(currentUser.uid);
-        staffList = staffSnapshot.docs
-            .map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>})
-            .toList();
+          // Get staff created by this owner
+          QuerySnapshot staffSnapshot =
+              await _authService.getStaff(currentUser.uid);
+          staffList = staffSnapshot.docs
+              .map((doc) =>
+                  {'id': doc.id, ...doc.data() as Map<String, dynamic>})
+              .toList();
+        }
       }
     } catch (e) {
       print('Error loading data: $e');

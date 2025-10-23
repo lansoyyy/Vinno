@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_AddCB/cb_connection_success.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:smart_cb_1/services/firebase_auth_service.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 class SearchConnection extends StatefulWidget {
   const SearchConnection({super.key});
@@ -26,7 +29,8 @@ class _SearchConnectionState extends State<SearchConnection> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (cbData == null) {
-      cbData = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      cbData =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     }
   }
 
@@ -54,34 +58,70 @@ class _SearchConnectionState extends State<SearchConnection> {
 
       // Get reference to Realtime Database
       final DatabaseReference dbRef = FirebaseDatabase.instance.ref();
-      
+
       // Create a unique key for this circuit breaker
       final String cbKey = cbData!['scbId'];
-      
+
       // Prepare data for Realtime Database
-      final Map<String, dynamic> circuitBreakerData = {
-        'isOn': cbData!['isOn'],
-        'scbName': cbData!['scbName'],
-        'scbId': cbData!['scbId'],
-        'circuitBreakerRating': cbData!['circuitBreakerRating'],
-        'wifiName': cbData!['wifiName'],
-        'wifiPassword': cbData!['wifiPassword'],
-        'voltage': cbData!['voltage'],
-        'current': cbData!['current'],
-        'temperature': cbData!['temperature'],
-        'power': cbData!['power'],
-        'energy': cbData!['energy'],
-        'latitude': cbData!['latitude'],
-        'longitude': cbData!['longitude'],
-        'ownerId': user.uid,
-        'createdAt': ServerValue.timestamp,
-      };
+
+      Map<String, dynamic> circuitBreakerData = {};
+      if (box.read('accountType') == 'Admin') {
+        DocumentSnapshot? userData =
+            await FirebaseAuthService().getUserData(user.uid);
+        if (userData != null && userData.exists) {
+          Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
+          setState(() {
+            circuitBreakerData = {
+              'isOn': cbData!['isOn'],
+              'scbName': cbData!['scbName'],
+              'scbId': cbData!['scbId'],
+              'circuitBreakerRating': cbData!['circuitBreakerRating'],
+              'wifiName': cbData!['wifiName'],
+              'wifiPassword': cbData!['wifiPassword'],
+              'voltage': cbData!['voltage'],
+              'current': cbData!['current'],
+              'temperature': cbData!['temperature'],
+              'power': cbData!['power'],
+              'energy': cbData!['energy'],
+              'latitude': cbData!['latitude'],
+              'longitude': cbData!['longitude'],
+              'ownerId': data['createdBy'],
+              'createdAt': ServerValue.timestamp,
+            };
+          });
+        }
+      } else {
+        setState(() {
+          circuitBreakerData = {
+            'isOn': cbData!['isOn'],
+            'scbName': cbData!['scbName'],
+            'scbId': cbData!['scbId'],
+            'circuitBreakerRating': cbData!['circuitBreakerRating'],
+            'wifiName': cbData!['wifiName'],
+            'wifiPassword': cbData!['wifiPassword'],
+            'voltage': cbData!['voltage'],
+            'current': cbData!['current'],
+            'temperature': cbData!['temperature'],
+            'power': cbData!['power'],
+            'energy': cbData!['energy'],
+            'latitude': cbData!['latitude'],
+            'longitude': cbData!['longitude'],
+            'ownerId': user.uid,
+            'createdAt': ServerValue.timestamp,
+          };
+        });
+      }
 
       // Save to: circuitBreakers/{scbId}
       await dbRef.child('circuitBreakers').child(cbKey).set(circuitBreakerData);
 
       // Also add reference under user's circuit breakers
-      await dbRef.child('users').child(user.uid).child('circuitBreakers').child(cbKey).set(true);
+      await dbRef
+          .child('users')
+          .child(user.uid)
+          .child('circuitBreakers')
+          .child(cbKey)
+          .set(true);
 
       setState(() {
         isSaving = false;
@@ -100,11 +140,11 @@ class _SearchConnectionState extends State<SearchConnection> {
       setState(() {
         isSaving = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving circuit breaker: $e')),
       );
-      
+
       // Still navigate after error (optional - you can change this)
       Timer(const Duration(seconds: 2), () {
         Navigator.pushReplacement(
@@ -149,12 +189,15 @@ class _SearchConnectionState extends State<SearchConnection> {
               child: Column(
                 children: [
                   Text(
-                    isSaving ? "Saving Circuit Breaker..." : "Connection Successful!",
+                    isSaving
+                        ? "Saving Circuit Breaker..."
+                        : "Connection Successful!",
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.clip,
                     maxLines: 2,
                     softWrap: true,
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 28, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 20),
                   if (isSaving)

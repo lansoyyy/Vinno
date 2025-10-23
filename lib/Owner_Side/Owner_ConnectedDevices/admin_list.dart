@@ -1,6 +1,7 @@
 // ignore_for_file: sort_child_properties_last, must_be_immutable
 
 import 'package:flutter/material.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 class AdminLists extends StatelessWidget {
   final Map<String, dynamic> adminData;
@@ -53,13 +54,15 @@ class AdminLists extends StatelessWidget {
                 ),
 
                 // Block/Unblock button
-                GestureDetector(
-                  onTap: onToggleStatus,
-                  child: Icon(
-                    isActive ? Icons.block : Icons.check_circle,
-                    color: isActive ? Colors.red : Colors.green,
-                  ),
-                ),
+                box.read('accountType') == 'Admin'
+                    ? SizedBox()
+                    : GestureDetector(
+                        onTap: onToggleStatus,
+                        child: Icon(
+                          isActive ? Icons.block : Icons.check_circle,
+                          color: isActive ? Colors.red : Colors.green,
+                        ),
+                      ),
               ],
             ),
           ),

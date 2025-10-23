@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:smart_cb_1/services/firebase_auth_service.dart';
@@ -129,7 +130,7 @@ class _AdminStaffRegistrationStep1State
               ),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 String password = passwordController.text.trim();
                 if (password.isEmpty) {
                   _showMessage("Please enter your password.");
@@ -139,21 +140,47 @@ class _AdminStaffRegistrationStep1State
                 Navigator.of(context).pop();
 
                 // Navigate to step 2 with data
-                Navigator.pushNamed(
-                  context,
-                  '/admin_staff_registration_step2',
-                  arguments: {
-                    'accountType': widget.accountType,
-                    'name': name,
-                    'age': age,
-                    'address': address,
-                    'mobile': mobile,
-                    'birthday': birthday,
-                    'createdBy': ownerId, // Pass the owner's ID
-                    'ownerEmail': ownerEmail, // Pass the owner's email
-                    'ownerPassword': password, // Pass the owner's password
-                  },
-                );
+
+                if (widget.accountType == 'Admin') {
+                  User? currentUser = _authService.currentUser;
+                  DocumentSnapshot? userData =
+                      await _authService.getUserData(currentUser!.uid ?? '');
+                  if (userData != null && userData.exists) {
+                    Map<String, dynamic> data =
+                        userData.data() as Map<String, dynamic>;
+                    Navigator.pushNamed(
+                      context,
+                      '/admin_staff_registration_step2',
+                      arguments: {
+                        'accountType': widget.accountType,
+                        'name': name,
+                        'age': age,
+                        'address': address,
+                        'mobile': mobile,
+                        'birthday': birthday,
+                        'createdBy': data['createdBy'],
+                        'ownerEmail': ownerEmail,
+                        'ownerPassword': password,
+                      },
+                    );
+                  }
+                } else {
+                  Navigator.pushNamed(
+                    context,
+                    '/admin_staff_registration_step2',
+                    arguments: {
+                      'accountType': widget.accountType,
+                      'name': name,
+                      'age': age,
+                      'address': address,
+                      'mobile': mobile,
+                      'birthday': birthday,
+                      'createdBy': ownerId, // Pass the owner's ID
+                      'ownerEmail': ownerEmail, // Pass the owner's email
+                      'ownerPassword': password, // Pass the owner's password
+                    },
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2ECC71),

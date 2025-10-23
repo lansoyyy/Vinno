@@ -1,11 +1,14 @@
 // ignore_for_file: sort_child_properties_last
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_LandingPage/circuit_breaker_tile.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_LandingPage/nav_home.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/statistics_menu.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:smart_cb_1/services/firebase_auth_service.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 class CircuitBreakerList extends StatefulWidget {
   const CircuitBreakerList({super.key});
@@ -27,7 +30,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
   bool isLoading = true;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   String? currentUserId;
-
+  final FirebaseAuthService _authService = FirebaseAuthService();
   @override
   void initState() {
     super.initState();
@@ -60,24 +63,54 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
 
         List<Map<String, dynamic>> loadedCBs = [];
 
-        data.forEach((key, value) {
+        data.forEach((key, value) async {
           final cbData = Map<String, dynamic>.from(value as Map);
           // Only load circuit breakers owned by current user
-          if (cbData['ownerId'] == currentUserId) {
-            loadedCBs.add({
-              'scbId': key,
-              'scbName': cbData['scbName'] ?? 'Unknown',
-              'isOn': cbData['isOn'] ?? false,
-              'circuitBreakerRating': cbData['circuitBreakerRating'] ?? 0,
-              'voltage': cbData['voltage'] ?? 0,
-              'current': cbData['current'] ?? 0,
-              'temperature': cbData['temperature'] ?? 0,
-              'power': cbData['power'] ?? 0,
-              'energy': cbData['energy'] ?? 0,
-              'latitude': cbData['latitude'] ?? 0.0,
-              'longitude': cbData['longitude'] ?? 0.0,
-              'wifiName': cbData['wifiName'] ?? '',
-            });
+          if (box.read('accountType') == 'Admin') {
+            DocumentSnapshot? userData =
+                await _authService.getUserData(currentUserId ?? '');
+            if (userData != null && userData.exists) {
+              Map<String, dynamic> data =
+                  userData.data() as Map<String, dynamic>;
+
+              if (cbData['ownerId'] == data['createdBy']) {
+                setState(() {
+                  loadedCBs.add({
+                    'scbId': key,
+                    'scbName': cbData['scbName'] ?? 'Unknown',
+                    'isOn': cbData['isOn'] ?? false,
+                    'circuitBreakerRating': cbData['circuitBreakerRating'] ?? 0,
+                    'voltage': cbData['voltage'] ?? 0,
+                    'current': cbData['current'] ?? 0,
+                    'temperature': cbData['temperature'] ?? 0,
+                    'power': cbData['power'] ?? 0,
+                    'energy': cbData['energy'] ?? 0,
+                    'latitude': cbData['latitude'] ?? 0.0,
+                    'longitude': cbData['longitude'] ?? 0.0,
+                    'wifiName': cbData['wifiName'] ?? '',
+                  });
+                });
+              }
+            }
+          } else {
+            if (cbData['ownerId'] == currentUserId) {
+              setState(() {
+                loadedCBs.add({
+                  'scbId': key,
+                  'scbName': cbData['scbName'] ?? 'Unknown',
+                  'isOn': cbData['isOn'] ?? false,
+                  'circuitBreakerRating': cbData['circuitBreakerRating'] ?? 0,
+                  'voltage': cbData['voltage'] ?? 0,
+                  'current': cbData['current'] ?? 0,
+                  'temperature': cbData['temperature'] ?? 0,
+                  'power': cbData['power'] ?? 0,
+                  'energy': cbData['energy'] ?? 0,
+                  'latitude': cbData['latitude'] ?? 0.0,
+                  'longitude': cbData['longitude'] ?? 0.0,
+                  'wifiName': cbData['wifiName'] ?? '',
+                });
+              });
+            }
           }
         });
 
@@ -119,11 +152,6 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
         SnackBar(content: Text('Error updating circuit breaker: $e')),
       );
     }
-  }
-
-  void _saveForUndo() {
-    // Undo functionality disabled for now with Firebase
-    // Can be implemented with local state management if needed
   }
 
   // Show delete confirmation dialog

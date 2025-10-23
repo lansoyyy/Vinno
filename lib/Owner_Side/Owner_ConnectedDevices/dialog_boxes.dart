@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smart_cb_1/services/firebase_auth_service.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 // For Adding Accounts
 void showNavigateDialog(BuildContext context) {
@@ -22,60 +23,67 @@ void showNavigateDialog(BuildContext context) {
           child: Column(
             children: [
               // Admin
-              Container(
-                width: double.infinity,
-                height: 60,
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.25),
-                      offset: Offset(0, 4), // x, y offset
-                      blurRadius: 2,
-                      spreadRadius: 0,
-                    ),
-                  ],
-                  borderRadius: BorderRadius.circular(12), // Match button shape
-                ),
-                child: ElevatedButton(
-                  style: ButtonStyle(
-                    padding: MaterialStateProperty.all<EdgeInsets>(
-                      EdgeInsets.zero,
-                    ),
-                    foregroundColor: MaterialStateProperty.all<Color>(
-                      Colors.black,
-                    ),
-                    backgroundColor: MaterialStateProperty.all<Color>(
-                      Colors.white,
-                    ),
-                    shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                      RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+              Visibility(
+                visible: box.read('accountType') != 'Admin',
+                child: Container(
+                  width: double.infinity,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.25),
+                        offset: Offset(0, 4), // x, y offset
+                        blurRadius: 2,
+                        spreadRadius: 0,
+                      ),
+                    ],
+                    borderRadius:
+                        BorderRadius.circular(12), // Match button shape
+                  ),
+                  child: ElevatedButton(
+                    style: ButtonStyle(
+                      padding: MaterialStateProperty.all<EdgeInsets>(
+                        EdgeInsets.zero,
+                      ),
+                      foregroundColor: MaterialStateProperty.all<Color>(
+                        Colors.black,
+                      ),
+                      backgroundColor: MaterialStateProperty.all<Color>(
+                        Colors.white,
+                      ),
+                      shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
-                  ),
-                  child: Text(
-                    'Admin',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w600,
+                    child: Text(
+                      'Admin',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                    onPressed: () {
+                      Navigator.pop(context); // Close dialog first
+                      Navigator.pushNamed(
+                        context,
+                        '/admin_staff_registration_step1',
+                        arguments: {'accountType': 'Admin'},
+                      );
+                    },
                   ),
-                  onPressed: () {
-                    Navigator.pop(context); // Close dialog first
-                    Navigator.pushNamed(
-                      context,
-                      '/admin_staff_registration_step1',
-                      arguments: {'accountType': 'Admin'},
-                    );
-                  },
                 ),
               ),
 
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Text('or', style: TextStyle(fontSize: 18)),
+              Visibility(
+                visible: box.read('accountType') != 'Admin',
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Text('or', style: TextStyle(fontSize: 18)),
+                ),
               ),
 
               // Staff

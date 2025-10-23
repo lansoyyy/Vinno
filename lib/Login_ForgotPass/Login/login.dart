@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smart_cb_1/util/background_img.dart';
 import 'package:smart_cb_1/services/firebase_auth_service.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -68,7 +69,7 @@ class _LoginPageState extends State<LoginPage> {
         if (userData != null && userData.exists) {
           Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
           String accountType = data['accountType'] ?? 'Owner';
-
+          box.write('accountType', accountType);
           if (data['isActive']) {
             // Navigate based on account type
             if (accountType == 'Owner') {
