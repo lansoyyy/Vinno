@@ -43,7 +43,8 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
       // Get current user (owner)
       User? currentUser = _authService.currentUser;
 
-      if (box.read('accountType') == 'Admin') {
+      if (box.read('accountType') == 'Admin' ||
+          box.read('accountType') == 'Staff') {
         DocumentSnapshot? userData =
             await FirebaseAuthService().getUserData(currentUser!.uid);
         if (currentUser != null) {

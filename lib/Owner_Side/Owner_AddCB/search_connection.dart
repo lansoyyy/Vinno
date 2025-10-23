@@ -65,7 +65,8 @@ class _SearchConnectionState extends State<SearchConnection> {
       // Prepare data for Realtime Database
 
       Map<String, dynamic> circuitBreakerData = {};
-      if (box.read('accountType') == 'Admin') {
+      if (box.read('accountType') == 'Admin' ||
+          box.read('accountType') == 'Staff') {
         DocumentSnapshot? userData =
             await FirebaseAuthService().getUserData(user.uid);
         if (userData != null && userData.exists) {

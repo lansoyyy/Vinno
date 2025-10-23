@@ -66,7 +66,8 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
         data.forEach((key, value) async {
           final cbData = Map<String, dynamic>.from(value as Map);
           // Only load circuit breakers owned by current user
-          if (box.read('accountType') == 'Admin') {
+          if (box.read('accountType') == 'Admin' ||
+              box.read('accountType') == 'Staff') {
             DocumentSnapshot? userData =
                 await _authService.getUserData(currentUserId ?? '');
             if (userData != null && userData.exists) {
@@ -255,6 +256,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
   // add new Bracket
   @override
   Widget build(BuildContext context) {
+    print(box.read('accountType'));
     return Scaffold(
       backgroundColor: Color(0xFFFFFFFF),
       body: SingleChildScrollView(
@@ -304,14 +306,17 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
 
                         // Edit Bracket Button
                         if (!isEditMode)
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                isEditMode = true;
-                                selectedBracketNames.clear();
-                              });
-                            },
-                            child: Icon(Icons.edit, size: 30),
+                          Visibility(
+                            visible: box.read('accountType') != 'Staff',
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  isEditMode = true;
+                                  selectedBracketNames.clear();
+                                });
+                              },
+                              child: Icon(Icons.edit, size: 30),
+                            ),
                           ),
 
                         // Delete Bracket/s Button
