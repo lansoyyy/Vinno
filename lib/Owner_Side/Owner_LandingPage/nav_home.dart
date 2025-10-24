@@ -1,7 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:smart_cb_1/services/threshold_monitor_service.dart';
 import 'package:smart_cb_1/util/const.dart';
 import 'package:vibration/vibration.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NavHome extends StatefulWidget {
   const NavHome({super.key});
@@ -13,11 +17,20 @@ class NavHome extends StatefulWidget {
 class _NavHomeState extends State<NavHome> {
   final ThresholdMonitorService _thresholdService = ThresholdMonitorService();
   final Set<String> _processedViolations = {};
+  Timer? _locationUpdateTimer;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
     _setupThresholdListener();
+    _startLocationUpdates();
+  }
+
+  @override
+  void dispose() {
+    _locationUpdateTimer?.cancel();
+    super.dispose();
   }
 
   // Setup listener for threshold violations
@@ -63,6 +76,69 @@ class _NavHomeState extends State<NavHome> {
     if (hasVibrator == true) {
       // Vibrate with a pattern: 0.5s on, 0.2s off, 0.5s on
       await Vibration.vibrate(pattern: [0, 500, 200, 500]);
+    }
+  }
+
+  // Start periodic location updates every minute
+  void _startLocationUpdates() {
+    // Update location immediately on start
+    _updateUserLocation();
+
+    // Set up timer to update every 1 minute (60 seconds)
+    _locationUpdateTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (timer) {
+        _updateUserLocation();
+      },
+    );
+  }
+
+  // Update user's location in Firestore
+  Future<void> _updateUserLocation() async {
+    try {
+      // Get current user
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        print('No user logged in, skipping location update');
+        return;
+      }
+
+      // Check location permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          print('Location permission denied');
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        print('Location permission permanently denied');
+        return;
+      }
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      String userType = box.read('accountType') == 'Staff'
+          ? 'staff'
+          : box.read('accountType') == 'Owner'
+              ? 'owners'
+              : 'admins';
+
+      // Update Firestore with new location
+      await _firestore.collection(userType).doc(user.uid).update({
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+        'lastLocationUpdate': FieldValue.serverTimestamp(),
+      });
+
+      print('Location updated: ${position.latitude}, ${position.longitude}');
+    } catch (e) {
+      print('Error updating location: $e');
     }
   }
 

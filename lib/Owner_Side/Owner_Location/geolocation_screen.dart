@@ -3,6 +3,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:geocoding/geocoding.dart';
 
 class GeolocationScreen extends StatefulWidget {
@@ -26,8 +27,10 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
 
   // Real user data from Firebase
   List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _circuitBreakers = [];
   bool _isLoadingUsers = true;
   String? _currentUserId;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
   @override
   void initState() {
@@ -39,6 +42,7 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     _currentUserId = FirebaseAuth.instance.currentUser?.uid;
     await _getCurrentLocation();
     await _fetchUsersFromFirebase();
+    await _fetchCircuitBreakersFromDatabase();
     _createMarkers();
   }
 
@@ -128,6 +132,49 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     }
   }
 
+  Future<void> _fetchCircuitBreakersFromDatabase() async {
+    try {
+      final snapshot = await _dbRef.child('circuitBreakers').get();
+
+      if (snapshot.exists) {
+        List<Map<String, dynamic>> cbList = [];
+        final data = snapshot.value as Map<dynamic, dynamic>;
+
+        data.forEach((key, value) {
+          final cbData = Map<String, dynamic>.from(value as Map);
+
+          // Only add circuit breakers with valid location
+          if (cbData['latitude'] != null &&
+              cbData['longitude'] != null &&
+              cbData['latitude'] != 0 &&
+              cbData['longitude'] != 0) {
+            cbList.add({
+              'id': key,
+              'scbName': cbData['scbName'] ?? 'Unknown CB',
+              'scbId': cbData['scbId'] ?? key,
+              'position': LatLng(
+                (cbData['latitude'] as num).toDouble(),
+                (cbData['longitude'] as num).toDouble(),
+              ),
+              'latitude': (cbData['latitude'] as num).toDouble(),
+              'longitude': (cbData['longitude'] as num).toDouble(),
+              'isOn': cbData['isOn'] ?? false,
+              'ownerId': cbData['ownerId'] ?? '',
+            });
+          }
+        });
+
+        setState(() {
+          _circuitBreakers = cbList;
+        });
+
+        print('Fetched ${cbList.length} circuit breakers');
+      }
+    } catch (e) {
+      print('Error fetching circuit breakers: $e');
+    }
+  }
+
   Future<void> _getCurrentLocation() async {
     try {
       LocationPermission permission = await Geolocator.checkPermission();
@@ -157,15 +204,34 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     Set<Marker> markers = {};
     Set<Circle> circles = {};
 
-    // Add circuit breaker marker (red)
-    markers.add(
-      Marker(
-        markerId: const MarkerId('circuit_breaker'),
-        position: _currentPosition,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        infoWindow: const InfoWindow(title: 'Circuit Breaker'),
-      ),
-    );
+    // Add circuit breaker markers (red) from Realtime Database
+    for (var cb in _circuitBreakers) {
+      final markerId = MarkerId('cb_${cb['id']}');
+
+      markers.add(
+        Marker(
+          markerId: markerId,
+          position: cb['position'],
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          infoWindow: InfoWindow(
+            title: cb['scbName'],
+            snippet: 'Circuit Breaker',
+          ),
+        ),
+      );
+
+      // Add circle around circuit breaker
+      circles.add(
+        Circle(
+          circleId: CircleId('circle_cb_${cb['id']}'),
+          center: cb['position'],
+          radius: 100,
+          fillColor: Colors.red.withOpacity(0.2),
+          strokeColor: Colors.red,
+          strokeWidth: 2,
+        ),
+      );
+    }
 
     // Add user markers
     for (var user in _users) {
@@ -196,9 +262,11 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
           markerId: markerId,
           position: user['position'],
           icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
-          onTap: () {
-            _onMarkerTapped(user['id']);
-          },
+          infoWindow: InfoWindow(
+            title: user['name'],
+            snippet: user['type'].toString().toUpperCase(),
+          ),
+          onTap: () {},
         ),
       );
 
@@ -344,6 +412,7 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
   Widget build(BuildContext context) {
     final selectedUser = _getSelectedUser();
 
+    print(_users.last);
     return Scaffold(
       body: Stack(
         children: [
