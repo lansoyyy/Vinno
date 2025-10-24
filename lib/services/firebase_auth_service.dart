@@ -33,6 +33,9 @@ class FirebaseAuthService {
       // Get the user ID
       String uid = userCredential.user!.uid;
 
+      // Send email verification
+      await userCredential.user!.sendEmailVerification();
+
       // Store additional user data in Firestore
       await _firestore.collection('owners').doc(uid).set({
         'uid': uid,
@@ -47,6 +50,7 @@ class FirebaseAuthService {
         'isActive': true,
         'latitude': 0,
         'longitude': 0,
+        'emailVerified': false, // Track email verification status
       });
 
       return null; // Success, return null for no error
@@ -69,10 +73,17 @@ class FirebaseAuthService {
     required String password,
   }) async {
     try {
-      await _auth.signInWithEmailAndPassword(
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      // Check if email is verified
+      if (!userCredential.user!.emailVerified) {
+        await _auth.signOut(); // Sign out the user
+        return 'Please verify your email before signing in. Check your inbox for the verification email.';
+      }
+
       return null; // Success, return null for no error
     } on FirebaseAuthException catch (e) {
       if (kDebugMode) {
@@ -147,6 +158,9 @@ class FirebaseAuthService {
       // Get the new user ID
       String uid = userCredential.user!.uid;
 
+      // Send email verification
+      await userCredential.user!.sendEmailVerification();
+
       // Determine collection based on account type
       String collection =
           accountType.toLowerCase() == 'admin' ? 'admins' : 'staff';
@@ -166,6 +180,7 @@ class FirebaseAuthService {
         'createdBy': ownerId, // Owner who created this account
         'latitude': 0,
         'longitude': 0,
+        'emailVerified': false, // Track email verification status
       });
 
       // Sign out the newly created user
@@ -188,6 +203,92 @@ class FirebaseAuthService {
         print('Error registering $accountType: $e');
       }
       return 'An unknown error occurred. Please try again.';
+    }
+  }
+
+  // Check email verification status and update Firestore
+  Future<String?> checkEmailVerification() async {
+    try {
+      User? user = _auth.currentUser;
+      if (user == null) {
+        return 'No user is currently signed in.';
+      }
+
+      // Reload user to get latest email verification status
+      await user.reload();
+      user = _auth.currentUser;
+
+      if (user!.emailVerified) {
+        // Update email verification status in Firestore
+        String uid = user.uid;
+
+        // Check in owners collection first
+        DocumentSnapshot doc =
+            await _firestore.collection('owners').doc(uid).get();
+        if (doc.exists) {
+          await _firestore.collection('owners').doc(uid).update({
+            'emailVerified': true,
+            'emailVerifiedAt': FieldValue.serverTimestamp(),
+          });
+          return null;
+        }
+
+        // Check in admins collection
+        doc = await _firestore.collection('admins').doc(uid).get();
+        if (doc.exists) {
+          await _firestore.collection('admins').doc(uid).update({
+            'emailVerified': true,
+            'emailVerifiedAt': FieldValue.serverTimestamp(),
+          });
+          return null;
+        }
+
+        // Check in staff collection
+        doc = await _firestore.collection('staff').doc(uid).get();
+        if (doc.exists) {
+          await _firestore.collection('staff').doc(uid).update({
+            'emailVerified': true,
+            'emailVerifiedAt': FieldValue.serverTimestamp(),
+          });
+          return null;
+        }
+
+        return 'User document not found in Firestore.';
+      } else {
+        return 'Email not verified yet.';
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error checking email verification: $e');
+      }
+      return 'Failed to check email verification status.';
+    }
+  }
+
+  // Resend email verification
+  Future<String?> resendEmailVerification() async {
+    try {
+      User? user = _auth.currentUser;
+      if (user == null) {
+        return 'No user is currently signed in.';
+      }
+
+      if (user.emailVerified) {
+        return 'Email is already verified.';
+      }
+
+      await user.sendEmailVerification();
+      return null; // Success
+    } on FirebaseAuthException catch (e) {
+      if (kDebugMode) {
+        print('Firebase Auth Error: ${e.message}');
+      }
+      return _getErrorMessage(e.code);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error resending verification email: $e');
+      }
+      return 'Failed to resend verification email. Please try again.';
     }
   }
 

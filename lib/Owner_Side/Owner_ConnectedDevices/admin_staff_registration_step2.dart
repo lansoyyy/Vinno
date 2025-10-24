@@ -120,18 +120,67 @@ class _AdminStaffRegistrationStep2State
     if (error != null) {
       _showMessage(error);
     } else {
-      // Navigate to success screen
-      Navigator.pushNamed(
-        context,
-        '/admin_staff_registration_success',
-        arguments: {'accountType': accountType},
-      );
+      // Show email verification dialog
+      _showEmailVerificationDialog();
     }
   }
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
+    );
+  }
+
+  void _showEmailVerificationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            "Email Verification Sent",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF4CAF50),
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.email_outlined,
+                size: 60,
+                color: Color(0xFF4CAF50),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                "A verification email has been sent to:\n\n${emailController.text.trim()}\n\nPlease check your inbox and click the verification link to complete your registration.",
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.pushNamed(
+                  context,
+                  '/admin_staff_registration_success',
+                  arguments: {'accountType': accountType},
+                );
+              },
+              child: const Text(
+                "OK",
+                style: TextStyle(
+                  color: Color(0xFF4CAF50),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

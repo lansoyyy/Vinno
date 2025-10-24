@@ -59,7 +59,12 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     if (error != null) {
-      _showMessage(error);
+      // Check if the error is related to email verification
+      if (error.contains("verify your email")) {
+        _showEmailVerificationDialog();
+      } else {
+        _showMessage(error);
+      }
     } else {
       // Get user data to determine account type
       User? currentUser = _authService.currentUser;
@@ -67,41 +72,45 @@ class _LoginPageState extends State<LoginPage> {
         DocumentSnapshot? userData =
             await _authService.getUserData(currentUser.uid);
         if (userData != null && userData.exists) {
-          Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
-          String accountType = data['accountType'] ?? 'Owner';
-          box.write('accountType', accountType);
-          if (data['isActive']) {
-            // Navigate based on account type
-            if (accountType == 'Owner') {
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/cblist',
-                (route) => false,
-              );
-            } else if (accountType == 'Admin') {
-              // Navigate to admin page when implemented
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/cblist', // Temporary route, update when admin page is ready
-                (route) => false,
-              );
-            } else if (accountType == 'Staff') {
-              // Navigate to staff page when implemented
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/cblist', // Temporary route, update when staff page is ready
-                (route) => false,
-              );
+          if (currentUser.emailVerified) {
+            Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
+            String accountType = data['accountType'] ?? 'Owner';
+            box.write('accountType', accountType);
+            if (data['isActive']) {
+              // Navigate based on account type
+              if (accountType == 'Owner') {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/cblist',
+                  (route) => false,
+                );
+              } else if (accountType == 'Admin') {
+                // Navigate to admin page when implemented
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/cblist', // Temporary route, update when admin page is ready
+                  (route) => false,
+                );
+              } else if (accountType == 'Staff') {
+                // Navigate to staff page when implemented
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/cblist', // Temporary route, update when staff page is ready
+                  (route) => false,
+                );
+              } else {
+                // Default to owner navigation
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/navigationpage',
+                  (route) => false,
+                );
+              }
             } else {
-              // Default to owner navigation
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/navigationpage',
-                (route) => false,
-              );
+              _showMessage("User is not active.");
             }
           } else {
-            _showMessage("User is not active.");
+            _showMessage("Please verify your email!");
           }
         }
       } else {
@@ -210,6 +219,95 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               child: const Text('Send Reset Link'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEmailVerificationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            "Email Verification Required",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF4CAF50),
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.email_outlined,
+                size: 60,
+                color: Color(0xFF4CAF50),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                "Please verify your email address before signing in.\n\nCheck your inbox for the verification email and click the link to complete your registration.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                "Later",
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+
+                // First try to sign in to get the user
+                String email = emailController.text.trim();
+                String password = passwordController.text.trim();
+
+                String? signInError =
+                    await _authService.signInWithEmailAndPassword(
+                  email: email,
+                  password: password,
+                );
+
+                if (signInError == null) {
+                  // Now resend the verification email
+                  String? resendError =
+                      await _authService.resendEmailVerification();
+
+                  if (resendError != null) {
+                    _showMessage(resendError);
+                  } else {
+                    _showMessage("Verification email resent to $email");
+                  }
+
+                  // Sign out the user
+                  await _authService.signOut();
+                } else {
+                  _showMessage(
+                      "Failed to resend verification email. Please try again.");
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4CAF50),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text("Resend Email"),
             ),
           ],
         );

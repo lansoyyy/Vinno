@@ -88,7 +88,8 @@ class _OwnerRegistrationStep1State extends State<OwnerRegistrationStep1> {
             children: [
               // Header
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 width: MediaQuery.of(context).size.width,
                 height: 60,
                 child: Stack(
