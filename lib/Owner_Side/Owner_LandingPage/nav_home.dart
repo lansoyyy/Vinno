@@ -39,10 +39,21 @@ class _NavHomeState extends State<NavHome> {
 
             // Execute actions for violations
             for (var violation in violations) {
+              print(
+                  'Processing violation: ${violation.type}, isWarning: ${violation.isWarning}, action: ${violation.action}');
               if (_thresholdService.shouldNotify(violation)) {
-                _thresholdService.executeThresholdAction(violation);
-                // Vibrate when threshold alert is triggered
+                print('Should notify: true');
+                // Only execute action for non-warning violations
+                if (!violation.isWarning) {
+                  print('Executing action for non-warning violation');
+                  _thresholdService.executeThresholdAction(violation);
+                } else {
+                  print('Skipping action execution for warning violation');
+                }
+                // Vibrate when threshold alert is triggered (for both warnings and violations)
                 _triggerVibration();
+              } else {
+                print('Should notify: false');
               }
             }
 
@@ -57,9 +68,16 @@ class _NavHomeState extends State<NavHome> {
                 child: Container(
                   margin: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
+                    color: !violations.any((v) => !v.isWarning)
+                        ? Colors.red.shade50
+                        : Colors.amber.shade50,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red, width: 2),
+                    border: Border.all(
+                      color: !violations.any((v) => !v.isWarning)
+                          ? Colors.red
+                          : Colors.amber,
+                      width: 2,
+                    ),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -67,7 +85,9 @@ class _NavHomeState extends State<NavHome> {
                       Container(
                         padding: EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.red,
+                          color: !violations.any((v) => !v.isWarning)
+                              ? Colors.red
+                              : Colors.amber,
                           borderRadius: BorderRadius.only(
                             topLeft: Radius.circular(10),
                             topRight: Radius.circular(10),
@@ -75,12 +95,18 @@ class _NavHomeState extends State<NavHome> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.warning_amber_rounded,
-                                color: Colors.white, size: 24),
+                            Icon(
+                                !violations.any((v) => !v.isWarning)
+                                    ? Icons.warning_rounded
+                                    : Icons.warning_amber_rounded,
+                                color: Colors.white,
+                                size: 24),
                             SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Threshold Alert (${violations.length})',
+                                !violations.any((v) => !v.isWarning)
+                                    ? 'Threshold Alert (${violations.where((v) => !v.isWarning).length})'
+                                    : 'Threshold Warning (${violations.length})',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
