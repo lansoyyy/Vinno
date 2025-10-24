@@ -6,6 +6,7 @@ class OverpowerSetting extends StatefulWidget {
   double? initialValue;
   String? initialAction;
   final Function(double value, String action)? onChanged;
+  final double cbRating; // CB rating in Amps
 
   OverpowerSetting({
     super.key,
@@ -14,6 +15,7 @@ class OverpowerSetting extends StatefulWidget {
     this.initialValue,
     this.initialAction,
     this.onChanged,
+    this.cbRating = 20.0,
   });
 
   @override
@@ -74,7 +76,7 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                   ),
                 ),
                 Text(
-                  "V",
+                  "W",
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight:
@@ -123,7 +125,7 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                     ),
                     SizedBox(width: 5),
                     Text(
-                      'V',
+                      'W',
                       style: TextStyle(
                         fontSize: 35,
                         fontWeight: FontWeight.w400,
@@ -140,9 +142,9 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                       onPressed: () {
                         setState(() {
                           widget.initialValue =
-                              (widget.initialValue! - 1).clamp(
+                              (widget.initialValue! - 10).clamp(
                             0,
-                            4000,
+                            22000,
                           );
                           widget.onChanged?.call(
                               widget.initialValue!, widget.initialAction!);
@@ -158,8 +160,8 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                         child: Slider(
                           value: widget.initialValue!,
                           min: 0,
-                          max: 4000,
-                          divisions: 4000,
+                          max: 22000,
+                          divisions: 2200,
                           activeColor: Color(0xFF2ECC71),
                           inactiveColor: Colors.grey[300],
                           onChanged: (value) {
@@ -178,9 +180,9 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                       onPressed: () {
                         setState(() {
                           widget.initialValue =
-                              (widget.initialValue! + 1).clamp(
+                              (widget.initialValue! + 10).clamp(
                             0,
-                            4000,
+                            22000,
                           );
                           widget.onChanged?.call(
                               widget.initialValue!, widget.initialAction!);

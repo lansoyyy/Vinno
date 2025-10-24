@@ -12,6 +12,49 @@ class NavHome extends StatefulWidget {
 
 class _NavHomeState extends State<NavHome> {
   final ThresholdMonitorService _thresholdService = ThresholdMonitorService();
+  final Set<String> _processedViolations = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _setupThresholdListener();
+  }
+
+  // Setup listener for threshold violations
+  void _setupThresholdListener() {
+    _thresholdService.monitorThresholds().listen((violations) {
+      for (var violation in violations) {
+        final violationKey =
+            '${violation.scbId}_${violation.type}_${violation.isWarning}_${violation.currentValue.toStringAsFixed(1)}';
+
+        // Only process each unique violation once
+        if (!_processedViolations.contains(violationKey)) {
+          _processedViolations.add(violationKey);
+
+          print(
+              'Processing violation: ${violation.type}, isWarning: ${violation.isWarning}, action: ${violation.action}');
+
+          if (_thresholdService.shouldNotify(violation)) {
+            print('Should notify: true');
+            // Execute action for all violations (warnings and critical)
+            // Warnings (90-99%) will log only, critical (100%+) will turn off CB
+            print('Executing action: ${violation.action}');
+            _thresholdService.executeThresholdAction(violation);
+
+            // Vibrate when threshold alert is triggered
+            _triggerVibration();
+          } else {
+            print('Should notify: false');
+          }
+        }
+      }
+
+      // Clean up old processed violations to prevent memory leak
+      if (_processedViolations.length > 100) {
+        _processedViolations.clear();
+      }
+    });
+  }
 
   // Trigger vibration when threshold alert is triggered
   Future<void> _triggerVibration() async {
@@ -37,26 +80,6 @@ class _NavHomeState extends State<NavHome> {
 
             final violations = snapshot.data!;
 
-            // Execute actions for violations
-            for (var violation in violations) {
-              print(
-                  'Processing violation: ${violation.type}, isWarning: ${violation.isWarning}, action: ${violation.action}');
-              if (_thresholdService.shouldNotify(violation)) {
-                print('Should notify: true');
-                // Only execute action for non-warning violations
-                if (!violation.isWarning) {
-                  print('Executing action for non-warning violation');
-                  _thresholdService.executeThresholdAction(violation);
-                } else {
-                  print('Skipping action execution for warning violation');
-                }
-                // Vibrate when threshold alert is triggered (for both warnings and violations)
-                _triggerVibration();
-              } else {
-                print('Should notify: false');
-              }
-            }
-
             // Show alert banner at top
             return Positioned(
               top: 0,
@@ -68,12 +91,12 @@ class _NavHomeState extends State<NavHome> {
                 child: Container(
                   margin: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: !violations.any((v) => !v.isWarning)
+                    color: violations.any((v) => !v.isWarning)
                         ? Colors.red.shade50
                         : Colors.amber.shade50,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: !violations.any((v) => !v.isWarning)
+                      color: violations.any((v) => !v.isWarning)
                           ? Colors.red
                           : Colors.amber,
                       width: 2,
@@ -85,7 +108,7 @@ class _NavHomeState extends State<NavHome> {
                       Container(
                         padding: EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: !violations.any((v) => !v.isWarning)
+                          color: violations.any((v) => !v.isWarning)
                               ? Colors.red
                               : Colors.amber,
                           borderRadius: BorderRadius.only(
@@ -96,7 +119,7 @@ class _NavHomeState extends State<NavHome> {
                         child: Row(
                           children: [
                             Icon(
-                                !violations.any((v) => !v.isWarning)
+                                violations.any((v) => !v.isWarning)
                                     ? Icons.warning_rounded
                                     : Icons.warning_amber_rounded,
                                 color: Colors.white,
@@ -104,7 +127,7 @@ class _NavHomeState extends State<NavHome> {
                             SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                !violations.any((v) => !v.isWarning)
+                                violations.any((v) => !v.isWarning)
                                     ? 'Threshold Alert (${violations.where((v) => !v.isWarning).length})'
                                     : 'Threshold Warning (${violations.length})',
                                 style: TextStyle(

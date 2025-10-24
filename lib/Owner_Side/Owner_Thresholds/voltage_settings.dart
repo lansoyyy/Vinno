@@ -22,17 +22,26 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   bool isSaving = false;
 
+  // CB Computation Constants
+  static const double STANDARD_VOLTAGE = 220.0; // Philippines standard
+  static const double DEFAULT_OVERVOLTAGE = 280.0;
+  static const double DEFAULT_UNDERVOLTAGE = 155.0;
+  static const double MAX_CB_RATING = 100.0; // Maximum CB current rating in Amps
+  
   // Threshold values (must be within slider ranges)
-  double overvoltageValue = 0; // max: 300
+  double overvoltageValue = DEFAULT_OVERVOLTAGE; // Default: 280V, max: 400V
   String overvoltageAction = 'Trip';
-  double undervoltageValue = 0; // max: 300
+  double undervoltageValue = DEFAULT_UNDERVOLTAGE; // Default: 155V
   String undervoltageAction = 'Trip';
-  double overcurrentValue = 0; // max: 150
+  double overcurrentValue = 20.0; // Default to 20A, will be set based on CB rating
   String overcurrentAction = 'Trip';
-  double overpowerValue = 0; // max: 4000 (changed from 5000)
+  double overpowerValue = 4400.0; // Default: 220V * 20A = 4400W
   String overpowerAction = 'Trip';
-  double temperatureValue = 0; // max: 55 (changed from 80)
+  double temperatureValue = 0; // max: 55
   String temperatureAction = 'Alarm';
+  
+  // CB Rating (from database or default)
+  double cbRating = 20.0; // Default 20A breaker
 
   @override
   void initState() {
@@ -44,6 +53,17 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
     if (cbData == null) return;
 
     try {
+      // Load CB rating if available
+      final cbSnapshot = await _dbRef
+          .child('circuitBreakers')
+          .child(cbData!['scbId'])
+          .get();
+      
+      if (cbSnapshot.exists) {
+        final cbInfo = Map<String, dynamic>.from(cbSnapshot.value as Map);
+        cbRating = (cbInfo['rating'] ?? 20.0).toDouble().clamp(1.0, MAX_CB_RATING);
+      }
+      
       final snapshot = await _dbRef
           .child('circuitBreakers')
           .child(cbData!['scbId'])
@@ -55,30 +75,42 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
 
         setState(() {
           if (data['overvoltage'] != null) {
-            overvoltageValue = (data['overvoltage']['value'] ?? 0).toDouble();
+            overvoltageValue = (data['overvoltage']['value'] ?? DEFAULT_OVERVOLTAGE).toDouble();
             overvoltageAction =
                 _capitalizeAction(data['overvoltage']['action'] ?? 'trip');
           }
           if (data['undervoltage'] != null) {
-            undervoltageValue = (data['undervoltage']['value'] ?? 0).toDouble();
+            undervoltageValue = (data['undervoltage']['value'] ?? DEFAULT_UNDERVOLTAGE).toDouble();
             undervoltageAction =
                 _capitalizeAction(data['undervoltage']['action'] ?? 'trip');
           }
           if (data['overcurrent'] != null) {
-            overcurrentValue = (data['overcurrent']['value'] ?? 0).toDouble();
+            overcurrentValue = (data['overcurrent']['value'] ?? cbRating).toDouble();
             overcurrentAction =
                 _capitalizeAction(data['overcurrent']['action'] ?? 'trip');
+          } else {
+            // Default overcurrent to CB rating
+            overcurrentValue = cbRating;
           }
           if (data['overpower'] != null) {
-            overpowerValue = (data['overpower']['value'] ?? 0).toDouble();
+            overpowerValue = (data['overpower']['value'] ?? (STANDARD_VOLTAGE * cbRating)).toDouble();
             overpowerAction =
                 _capitalizeAction(data['overpower']['action'] ?? 'trip');
+          } else {
+            // Default overpower = Voltage * Current
+            overpowerValue = STANDARD_VOLTAGE * cbRating;
           }
           if (data['temperature'] != null) {
             temperatureValue = (data['temperature']['value'] ?? 0).toDouble();
             temperatureAction =
                 _capitalizeAction(data['temperature']['action'] ?? 'trip');
           }
+        });
+      } else {
+        // No thresholds exist, set defaults based on CB rating
+        setState(() {
+          overcurrentValue = cbRating;
+          overpowerValue = STANDARD_VOLTAGE * cbRating;
         });
       }
     } catch (e) {
@@ -372,10 +404,13 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
                         divider: buildDivider(),
                         initialValue: overcurrentValue,
                         initialAction: overcurrentAction,
+                        cbRating: cbRating,
                         onChanged: (value, action) {
                           setState(() {
                             overcurrentValue = value;
                             overcurrentAction = action;
+                            // Auto-update overpower when overcurrent changes
+                            overpowerValue = STANDARD_VOLTAGE * value;
                           });
                         },
                       ),
@@ -384,10 +419,13 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
                         divider: buildDivider(),
                         initialValue: overpowerValue,
                         initialAction: overpowerAction,
+                        cbRating: cbRating,
                         onChanged: (value, action) {
                           setState(() {
                             overpowerValue = value;
                             overpowerAction = action;
+                            // Auto-update overcurrent when overpower changes
+                            overcurrentValue = value / STANDARD_VOLTAGE;
                           });
                         },
                       ),

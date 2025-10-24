@@ -142,7 +142,7 @@ class _OvervoltageSettingState extends State<OvervoltageSetting> {
                           widget.initialValue =
                               (widget.initialValue! - 1).clamp(
                             0,
-                            300,
+                            400,
                           );
                           widget.onChanged?.call(
                               widget.initialValue!, widget.initialAction!);
@@ -158,8 +158,8 @@ class _OvervoltageSettingState extends State<OvervoltageSetting> {
                         child: Slider(
                           value: widget.initialValue!,
                           min: 0,
-                          max: 300,
-                          divisions: 600,
+                          max: 400,
+                          divisions: 800,
                           activeColor: Color(0xFF2ECC71),
                           inactiveColor: Colors.grey[300],
                           onChanged: (value) {
@@ -180,7 +180,7 @@ class _OvervoltageSettingState extends State<OvervoltageSetting> {
                           widget.initialValue =
                               (widget.initialValue! + 1).clamp(
                             0,
-                            300,
+                            400,
                           );
                           widget.onChanged?.call(
                               widget.initialValue!, widget.initialAction!);

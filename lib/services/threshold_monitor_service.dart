@@ -53,14 +53,23 @@ class ThresholdMonitorService {
             final threshold = (overvoltage['value'] ?? 0).toDouble();
             final currentVoltage = (cbData['voltage'] ?? 0).toDouble();
             final action = overvoltage['action'] ?? 'trip';
-            final warningThreshold =
-                threshold * 0.9; // 90% of threshold for warning
 
-            // Check if we should show a warning (90% threshold)
-            if (currentVoltage > warningThreshold &&
-                currentVoltage <= threshold) {
+            // Skip if threshold is 0 or invalid
+            if (threshold <= 0) {
               print(
-                  'Overvoltage WARNING: $currentVoltage > $warningThreshold (90% of $threshold)');
+                  'Overvoltage: Invalid threshold ($threshold), skipping check');
+              continue;
+            }
+
+            // Calculate percentage of threshold
+            final percentage = (currentVoltage / threshold) * 100;
+
+            // Check if we should show a warning (90-99% threshold)
+            print(
+                'Overvoltage Check: Current=$currentVoltage, Threshold=$threshold, Percentage=${percentage.toStringAsFixed(1)}%');
+            if (percentage >= 90 && percentage < 100) {
+              print(
+                  'Overvoltage WARNING: ${percentage.toStringAsFixed(1)}% of threshold');
               violations.add(ThresholdViolation(
                 scbId: scbId,
                 scbName: cbData['scbName'] ?? 'Unknown',
@@ -73,16 +82,16 @@ class ThresholdMonitorService {
               ));
             }
             // Check if we should trigger the action (100% threshold)
-            else if (currentVoltage > threshold) {
+            else if (percentage >= 100) {
               print(
-                  'Overvoltage VIOLATION: $currentVoltage > $threshold (100%)');
+                  'Overvoltage VIOLATION: ${percentage.toStringAsFixed(1)}% of threshold - Action: $action');
               violations.add(ThresholdViolation(
                 scbId: scbId,
                 scbName: cbData['scbName'] ?? 'Unknown',
                 type: 'Overvoltage',
                 currentValue: currentVoltage,
                 thresholdValue: threshold,
-                action: action,
+                action: action, // Use the configured action
                 unit: 'V',
                 isWarning: false,
               ));
@@ -98,13 +107,23 @@ class ThresholdMonitorService {
             final threshold = (undervoltage['value'] ?? 0).toDouble();
             final currentVoltage = (cbData['voltage'] ?? 0).toDouble();
             final action = undervoltage['action'] ?? 'trip';
-            final warningThreshold = threshold *
-                1.1; // 110% of threshold for warning (since we're checking for lower values)
 
-            // Check if we should show a warning (90% threshold)
-            if (currentVoltage < warningThreshold &&
-                currentVoltage >= threshold &&
-                currentVoltage > 0) {
+            // Skip if threshold is 0 or invalid
+            if (threshold <= 0) {
+              print(
+                  'Undervoltage: Invalid threshold ($threshold), skipping check');
+              continue;
+            }
+
+            // Calculate percentage of threshold (inverted for undervoltage)
+            final percentage = ((threshold - currentVoltage) / threshold) * 100;
+
+            // Check if we should show a warning (90-99% threshold)
+            print(
+                'Undervoltage Check: Current=$currentVoltage, Threshold=$threshold, Percentage=${percentage.toStringAsFixed(1)}%');
+            if (percentage >= 90 && percentage < 100 && currentVoltage > 0) {
+              print(
+                  'Undervoltage WARNING: ${percentage.toStringAsFixed(1)}% of threshold');
               violations.add(ThresholdViolation(
                 scbId: scbId,
                 scbName: cbData['scbName'] ?? 'Unknown',
@@ -117,14 +136,16 @@ class ThresholdMonitorService {
               ));
             }
             // Check if we should trigger the action (100% threshold)
-            else if (currentVoltage < threshold && currentVoltage > 0) {
+            else if (percentage >= 100 && currentVoltage > 0) {
+              print(
+                  'Undervoltage VIOLATION: ${percentage.toStringAsFixed(1)}% of threshold - Action: $action');
               violations.add(ThresholdViolation(
                 scbId: scbId,
                 scbName: cbData['scbName'] ?? 'Unknown',
                 type: 'Undervoltage',
                 currentValue: currentVoltage,
                 thresholdValue: threshold,
-                action: action,
+                action: action, // Use the configured action
                 unit: 'V',
                 isWarning: false,
               ));
@@ -140,14 +161,23 @@ class ThresholdMonitorService {
             final threshold = (overcurrent['value'] ?? 0).toDouble();
             final currentCurrent = (cbData['current'] ?? 0).toDouble();
             final action = overcurrent['action'] ?? 'trip';
-            final warningThreshold =
-                threshold * 0.9; // 90% of threshold for warning
 
-            // Check if we should show a warning (90% threshold)
-            if (currentCurrent > warningThreshold &&
-                currentCurrent <= threshold) {
+            // Skip if threshold is 0 or invalid
+            if (threshold <= 0) {
               print(
-                  'Overcurrent WARNING: $currentCurrent > $warningThreshold (90% of $threshold)');
+                  'Overcurrent: Invalid threshold ($threshold), skipping check');
+              continue;
+            }
+
+            // Calculate percentage of threshold
+            final percentage = (currentCurrent / threshold) * 100;
+
+            // Check if we should show a warning (90-99% threshold)
+            print(
+                'Overcurrent Check: Current=$currentCurrent, Threshold=$threshold, Percentage=${percentage.toStringAsFixed(1)}%');
+            if (percentage >= 90 && percentage < 100) {
+              print(
+                  'Overcurrent WARNING: ${percentage.toStringAsFixed(1)}% of threshold');
               violations.add(ThresholdViolation(
                 scbId: scbId,
                 scbName: cbData['scbName'] ?? 'Unknown',
@@ -160,16 +190,16 @@ class ThresholdMonitorService {
               ));
             }
             // Check if we should trigger the action (100% threshold)
-            else if (currentCurrent > threshold) {
+            else if (percentage >= 100) {
               print(
-                  'Overcurrent VIOLATION: $currentCurrent > $threshold (100%)');
+                  'Overcurrent VIOLATION: ${percentage.toStringAsFixed(1)}% of threshold - Action: $action');
               violations.add(ThresholdViolation(
                 scbId: scbId,
                 scbName: cbData['scbName'] ?? 'Unknown',
                 type: 'Overcurrent',
                 currentValue: currentCurrent,
                 thresholdValue: threshold,
-                action: action,
+                action: action, // Use the configured action
                 unit: 'A',
                 isWarning: false,
               ));
@@ -185,11 +215,23 @@ class ThresholdMonitorService {
             final threshold = (overpower['value'] ?? 0).toDouble();
             final currentPower = (cbData['power'] ?? 0).toDouble();
             final action = overpower['action'] ?? 'trip';
-            final warningThreshold =
-                threshold * 0.9; // 90% of threshold for warning
 
-            // Check if we should show a warning (90% threshold)
-            if (currentPower > warningThreshold && currentPower <= threshold) {
+            // Skip if threshold is 0 or invalid
+            if (threshold <= 0) {
+              print(
+                  'Overpower: Invalid threshold ($threshold), skipping check');
+              continue;
+            }
+
+            // Calculate percentage of threshold
+            final percentage = (currentPower / threshold) * 100;
+
+            // Check if we should show a warning (90-99% threshold)
+            print(
+                'Overpower Check: Current=$currentPower, Threshold=$threshold, Percentage=${percentage.toStringAsFixed(1)}%');
+            if (percentage >= 90 && percentage < 100) {
+              print(
+                  'Overpower WARNING: ${percentage.toStringAsFixed(1)}% of threshold');
               violations.add(ThresholdViolation(
                 scbId: scbId,
                 scbName: cbData['scbName'] ?? 'Unknown',
@@ -202,14 +244,16 @@ class ThresholdMonitorService {
               ));
             }
             // Check if we should trigger the action (100% threshold)
-            else if (currentPower > threshold) {
+            else if (percentage >= 100) {
+              print(
+                  'Overpower VIOLATION: ${percentage.toStringAsFixed(1)}% of threshold - Action: $action');
               violations.add(ThresholdViolation(
                 scbId: scbId,
                 scbName: cbData['scbName'] ?? 'Unknown',
                 type: 'Overpower',
                 currentValue: currentPower,
                 thresholdValue: threshold,
-                action: action,
+                action: action, // Use the configured action
                 unit: 'W',
                 isWarning: false,
               ));
@@ -225,11 +269,23 @@ class ThresholdMonitorService {
             final threshold = (temperature['value'] ?? 0).toDouble();
             final currentTemp = (cbData['temperature'] ?? 0).toDouble();
             final action = temperature['action'] ?? 'trip';
-            final warningThreshold =
-                threshold * 0.9; // 90% of threshold for warning
 
-            // Check if we should show a warning (90% threshold)
-            if (currentTemp > warningThreshold && currentTemp <= threshold) {
+            // Skip if threshold is 0 or invalid
+            if (threshold <= 0) {
+              print(
+                  'Temperature: Invalid threshold ($threshold), skipping check');
+              continue;
+            }
+
+            // Calculate percentage of threshold
+            final percentage = (currentTemp / threshold) * 100;
+
+            // Check if we should show a warning (90-99% threshold)
+            print(
+                'Temperature Check: Current=$currentTemp, Threshold=$threshold, Percentage=${percentage.toStringAsFixed(1)}%');
+            if (percentage >= 90 && percentage < 100) {
+              print(
+                  'Temperature WARNING: ${percentage.toStringAsFixed(1)}% of threshold');
               violations.add(ThresholdViolation(
                 scbId: scbId,
                 scbName: cbData['scbName'] ?? 'Unknown',
@@ -242,14 +298,16 @@ class ThresholdMonitorService {
               ));
             }
             // Check if we should trigger the action (100% threshold)
-            else if (currentTemp > threshold) {
+            else if (percentage >= 100) {
+              print(
+                  'Temperature VIOLATION: ${percentage.toStringAsFixed(1)}% of threshold - Action: $action');
               violations.add(ThresholdViolation(
                 scbId: scbId,
                 scbName: cbData['scbName'] ?? 'Unknown',
                 type: 'Temperature',
                 currentValue: currentTemp,
                 thresholdValue: threshold,
-                action: action,
+                action: action, // Use the configured action
                 unit: '°C',
                 isWarning: false,
               ));
@@ -266,48 +324,46 @@ class ThresholdMonitorService {
   Future<void> executeThresholdAction(ThresholdViolation violation) async {
     final action = violation.action.toLowerCase();
 
-    switch (action) {
-      case 'warning':
-        // Just show warning notification, don't turn off
+    print('=== EXECUTING THRESHOLD ACTION ===');
+    print('Action: $action');
+    print('Type: ${violation.type}');
+    print('Is Warning: ${violation.isWarning}');
+    print('Current Value: ${violation.currentValue}');
+    print('Threshold Value: ${violation.thresholdValue}');
+    print('SCB ID: ${violation.scbId}');
 
-        await _logWarningEvent(violation);
-        break;
-
-      case 'trip':
-        // Turn off the circuit breaker
-        print('Trip action - Turning OFF circuit breaker');
-        await _dbRef
-            .child('circuitBreakers')
-            .child(violation.scbId)
-            .update({'isOn': false});
-
-        // Log trip event to Firestore
-        await _logTripEvent(violation);
-        break;
-
-      case 'alarm':
-        print('Alarm action - Turning OFF circuit breaker');
-        await _dbRef
-            .child('circuitBreakers')
-            .child(violation.scbId)
-            .update({'isOn': false});
-        // Just show in-app alert, don't turn off
-        // Log alarm event to Firestore
-        await _logAlarmEvent(violation);
-        break;
-
-      case 'off':
-        // Turn off the circuit breaker (action "off" means turn off CB)
-        print('Off action - Turning OFF circuit breaker');
-        await _dbRef
-            .child('circuitBreakers')
-            .child(violation.scbId)
-            .update({'isOn': false});
-
-        // Log off event to Firestore
-        await _logOffEvent(violation);
-        break;
+    // If it's a warning (90-99%), just log it
+    if (violation.isWarning) {
+      print('⚠️ Warning (90-99%) - NOT turning OFF circuit breaker');
+      await _logWarningEvent(violation);
     }
+    // If it's 100% or above, ALWAYS turn off the circuit breaker
+    else {
+      print(
+          '🔴 Threshold reached 100% - Turning OFF circuit breaker ${violation.scbId}');
+      await _dbRef
+          .child('circuitBreakers')
+          .child(violation.scbId)
+          .update({'isOn': false});
+      print('✅ Circuit breaker turned OFF successfully');
+
+      // Log based on action type
+      switch (action) {
+        case 'trip':
+          await _logTripEvent(violation);
+          break;
+        case 'alarm':
+          await _logAlarmEvent(violation);
+          break;
+        case 'off':
+          await _logOffEvent(violation);
+          break;
+        default:
+          await _logTripEvent(violation); // Default to trip log
+          break;
+      }
+    }
+    print('=================================');
   }
 
   // Log trip event to Firestore
