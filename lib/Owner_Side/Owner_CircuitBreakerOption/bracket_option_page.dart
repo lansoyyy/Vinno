@@ -82,6 +82,41 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
     }
   }
 
+  Future<void> _showToggleConfirmationDialog() async {
+    if (widget.cbData == null) return;
+
+    final currentState = widget.cbData!['isOn'] ?? true;
+    final action = currentState ? 'turn OFF' : 'turn ON';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirm Circuit Breaker Action'),
+          content:
+              Text('Are you sure you want to $action this circuit breaker?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: currentState ? Colors.red : Color(0xFF2ECC71),
+              ),
+              child: Text(action.toUpperCase()),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _toggleCircuitBreaker();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -95,7 +130,7 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
               // Stack: Button to On/Off the Circuit Breaker
               BracketOnOff(
                 click: click,
-                onPress: isToggling ? () {} : _toggleCircuitBreaker,
+                onPress: isToggling ? () {} : _showToggleConfirmationDialog,
               ), // height = 280
               // Options
               Container(

@@ -218,33 +218,6 @@ class _UndervoltageSettingState extends State<UndervoltageSetting> {
       scrollDirection: Axis.horizontal,
       children: <Widget>[
         ChoiceChip(
-          showCheckmark: false,
-          labelPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-          side: BorderSide.none,
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          selectedColor: Color(0xFF2ECC71),
-          selected: (widget.initialAction! == 'Off'),
-          onSelected: (bool value) {
-            setState(() {
-              widget.initialAction = 'Off';
-              widget.onChanged
-                  ?.call(widget.initialValue!, widget.initialAction!);
-            });
-          },
-          label: Text(
-            'Off',
-            style: TextStyle(
-              color: (widget.initialAction! == 'Off')
-                  ? Colors.white
-                  : Colors.black,
-              fontWeight: (widget.initialAction! == 'Off')
-                  ? FontWeight.w900
-                  : FontWeight.normal,
-            ),
-          ),
-        ),
-        ChoiceChip(
           label: Text(
             'Alarm',
             style: TextStyle(

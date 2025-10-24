@@ -37,6 +37,113 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
     });
   }
 
+  Future<void> _showEditConfirmationDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Enter Edit Mode'),
+          content: Text(
+              'Are you sure you want to enter edit mode? You can select and delete circuit breakers in this mode.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text('Enter Edit Mode'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        isEditMode = true;
+        selectedBracketNames.clear();
+
+        //Copy of BracketList
+        originalBracketList = bracketList.map((e) => [...e]).toList();
+      });
+    }
+  }
+
+  Future<void> _showDeleteConfirmationDialog() async {
+    final count = selectedBracketNames.length;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Delete Circuit Breakers'),
+          content: Text(
+            count == 1
+                ? 'Are you sure you want to delete this circuit breaker?'
+                : 'Are you sure you want to delete $count circuit breakers?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        _saveForUndo();
+        bracketList.removeWhere(
+          (item) => selectedBracketNames.contains(
+            item[0],
+          ),
+        );
+        selectedBracketNames.clear();
+      });
+    }
+  }
+
+  Future<void> _showSaveConfirmationDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Save Changes'),
+          content: Text(
+              'Are you sure you want to save the changes made in edit mode?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        isEditMode = false;
+        redoStack.clear();
+        undoStack.clear();
+      });
+    }
+  }
+
   void _saveForUndo() {
     undoStack.add(bracketList.map((e) => [...e]).toList());
     redoStack.clear(); // Clear redo stack when a new action is made
@@ -139,16 +246,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                         // Edit Bracket Button
                         if (!isEditMode)
                           GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                isEditMode = true;
-                                selectedBracketNames.clear();
-
-                                //Copy of BracketList
-                                originalBracketList =
-                                    bracketList.map((e) => [...e]).toList();
-                              });
-                            },
+                            onTap: _showEditConfirmationDialog,
                             child: Icon(Icons.edit, size: 30),
                           ),
 
@@ -212,22 +310,14 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
 
                               // Delete Button
                               GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _saveForUndo();
-                                    bracketList.removeWhere(
-                                      (item) => selectedBracketNames.contains(
-                                        item[0],
-                                      ),
-                                    );
-                                    selectedBracketNames.clear();
-                                  });
-                                },
+                                onTap: selectedBracketNames.isEmpty
+                                    ? null
+                                    : _showDeleteConfirmationDialog,
                                 child: Icon(
                                   Icons.delete_rounded,
                                   size: 30,
                                   color: selectedBracketNames.isEmpty
-                                      ? Colors.black.withOpacity(0.7)
+                                      ? Colors.black.withOpacity(0.3)
                                       : Colors.red,
                                 ),
                               ),
@@ -460,13 +550,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                               ),
                             ),
                             child: Text('Save', textAlign: TextAlign.center),
-                            onPressed: () {
-                              setState(() {
-                                isEditMode = false;
-                                redoStack.clear();
-                                undoStack.clear();
-                              });
-                            },
+                            onPressed: _showSaveConfirmationDialog,
                           ),
                         ),
                       ],

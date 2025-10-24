@@ -253,6 +253,37 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
     }
   }
 
+  // Show edit mode confirmation dialog
+  Future<void> _showEditConfirmationDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Enter Edit Mode'),
+          content: Text(
+              'Are you sure you want to enter edit mode? You can select and delete circuit breakers in this mode.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text('Enter Edit Mode'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        isEditMode = true;
+        selectedBracketNames.clear();
+      });
+    }
+  }
+
   // add new Bracket
   @override
   Widget build(BuildContext context) {
@@ -309,12 +340,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                           Visibility(
                             visible: box.read('accountType') != 'Staff',
                             child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  isEditMode = true;
-                                  selectedBracketNames.clear();
-                                });
-                              },
+                              onTap: () => _showEditConfirmationDialog(),
                               child: Icon(Icons.edit, size: 30),
                             ),
                           ),

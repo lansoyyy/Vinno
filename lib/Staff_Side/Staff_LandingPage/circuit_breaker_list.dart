@@ -25,10 +25,39 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
   ];
 
   // Switch Changed
-  void switchChanged(bool? value, int index) {
-    setState(() {
-      bracketList[index][1] = !bracketList[index][1];
-    });
+  Future<void> switchChanged(bool? value, int index) async {
+    final currentState = bracketList[index][1];
+    final action = currentState ? 'turn OFF' : 'turn ON';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirm Circuit Breaker Action'),
+          content: Text(
+              'Are you sure you want to $action ${bracketList[index][0]} circuit breaker?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: currentState ? Colors.red : Color(0xFF2ECC71),
+              ),
+              child: Text(action.toUpperCase()),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        bracketList[index][1] = !bracketList[index][1];
+      });
+    }
   }
 
   // add new Bracket
@@ -44,7 +73,6 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
         },
         child: Icon(Icons.my_location_rounded, color: Colors.red),
       ),
-
       body: SingleChildScrollView(
         child: Container(
           height: MediaQuery.of(context).size.height,

@@ -17,6 +17,38 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
   bool isExpanded = false;
   bool isChosen = false;
 
+  void _showSaveConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirm Save'),
+          content:
+              Text('Are you sure you want to save these threshold settings?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                // Add save functionality here if needed
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text('Threshold settings saved successfully')),
+                );
+              },
+              child: Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void ExpandTile(bool expanded) {
     setState(() {
       isExpanded = expanded;
@@ -28,7 +60,6 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
     return Scaffold(
       backgroundColor: Color(0xFFFFFFFF),
       extendBodyBehindAppBar: true,
-
       body: Stack(
         children: [
           Column(
@@ -48,7 +79,6 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
                       height: 135,
                     ),
                   ),
-
                   Padding(
                     padding: const EdgeInsets.only(
                       left: 30,
@@ -77,12 +107,15 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
                             color: Colors.white,
                           ),
                         ),
-                        Text(
-                          'Save',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: Colors.white,
+                        GestureDetector(
+                          onTap: _showSaveConfirmationDialog,
+                          child: Text(
+                            'Save',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ],
@@ -114,22 +147,18 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
                         onPress: ExpandTile,
                         divider: buildDivider(),
                       ),
-
                       UndervoltageSetting(
                         onPress: ExpandTile,
                         divider: buildDivider(),
                       ),
-
                       OvercurrentSetting(
                         onPress: ExpandTile,
                         divider: buildDivider(),
                       ),
-
                       OverpowerSetting(
                         onPress: ExpandTile,
                         divider: buildDivider(),
                       ),
-
                       TemperatureOption(
                         onPress: ExpandTile,
                         divider: buildDivider(),

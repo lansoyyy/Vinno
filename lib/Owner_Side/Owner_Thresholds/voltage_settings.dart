@@ -32,7 +32,7 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
   double overpowerValue = 0; // max: 4000 (changed from 5000)
   String overpowerAction = 'Trip';
   double temperatureValue = 0; // max: 55 (changed from 80)
-  String temperatureAction = 'Trip';
+  String temperatureAction = 'Alarm';
 
   @override
   void initState() {
@@ -151,6 +151,34 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
     setState(() {
       isExpanded = expanded;
     });
+  }
+
+  void _showSaveConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirm Save'),
+          content:
+              Text('Are you sure you want to save these threshold settings?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _saveThresholdSettings(); // Proceed with saving
+              },
+              child: Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _saveThresholdSettings() async {
@@ -280,7 +308,7 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: isSaving ? null : _saveThresholdSettings,
+                          onTap: isSaving ? null : _showSaveConfirmationDialog,
                           child: Text(
                             isSaving ? 'Saving...' : 'Save',
                             style: TextStyle(

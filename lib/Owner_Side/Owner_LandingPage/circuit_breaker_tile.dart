@@ -58,7 +58,6 @@ class CircuitBreakerTile extends StatelessWidget {
                     ),
                   ],
                 ),
-
                 if (!isEditMode)
                   Switch(
                     value: turnOn,

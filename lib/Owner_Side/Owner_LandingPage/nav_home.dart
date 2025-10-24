@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:smart_cb_1/services/threshold_monitor_service.dart';
 import 'package:smart_cb_1/util/const.dart';
+import 'package:vibration/vibration.dart';
 
 class NavHome extends StatefulWidget {
   const NavHome({super.key});
@@ -11,6 +12,16 @@ class NavHome extends StatefulWidget {
 
 class _NavHomeState extends State<NavHome> {
   final ThresholdMonitorService _thresholdService = ThresholdMonitorService();
+
+  // Trigger vibration when threshold alert is triggered
+  Future<void> _triggerVibration() async {
+    // Check if the device supports vibration
+    bool? hasVibrator = await Vibration.hasVibrator();
+    if (hasVibrator == true) {
+      // Vibrate with a pattern: 0.5s on, 0.2s off, 0.5s on
+      await Vibration.vibrate(pattern: [0, 500, 200, 500]);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +41,8 @@ class _NavHomeState extends State<NavHome> {
             for (var violation in violations) {
               if (_thresholdService.shouldNotify(violation)) {
                 _thresholdService.executeThresholdAction(violation);
+                // Vibrate when threshold alert is triggered
+                _triggerVibration();
               }
             }
 
