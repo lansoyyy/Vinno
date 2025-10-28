@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:smart_cb_1/services/firebase_auth_service.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -379,6 +380,82 @@ class _SettingsPageState extends State<SettingsPage> {
                           ],
                         ),
                       ),
+
+                      // Debug Only: Mock Data Generator (only visible in debug mode)
+                      if (kDebugMode) ...[
+                        SizedBox(height: 15),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Color(
+                                0xFFFFF3E0), // Light orange background for debug
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(0xFF000000).withOpacity(0.25),
+                                offset: Offset(-4, 4), // x, y offset
+                                blurRadius: 2,
+                                spreadRadius: 0,
+                              ),
+                            ],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pushNamed(context, '/mock_data_test');
+                            },
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10.0),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Color(0xFFFFE0B2), // Orange for debug
+                                    borderRadius: BorderRadius.circular(40),
+                                  ),
+                                  child: Icon(
+                                    Icons.bug_report,
+                                    color: Color(0xFFE65100),
+                                    size: 50,
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 150,
+                                      child: Text(
+                                        'Mock Data Generator',
+                                        style: TextStyle(
+                                          fontSize: 19,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      'Debug Only',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Icon(
+                                  Icons.arrow_forward_ios,
+                                  color: Colors.black,
+                                  size: 20,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   Column(

@@ -41,6 +41,7 @@ import 'package:smart_cb_1/Owner_Side/Owner_Statistics/statistics_menu.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Thresholds/voltage_settings.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_TripHistory/nav_history.dart';
 import 'package:smart_cb_1/firebase_options.dart';
+import 'package:smart_cb_1/utils/mock_data_test_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -111,6 +112,7 @@ class MyApp extends StatelessWidget {
         '/cbsuccess': (context) => CBConnectionSuccess(),
         '/statistic_menu': (context) => StatisticsMenu(),
         '/consumption': (context) => ConsumptionMain(),
+        '/mock_data_test': (context) => MockDataTestScreen(),
       },
     );
   }

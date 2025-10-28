@@ -22,8 +22,8 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
   Set<String> selectedBracketNames = {}; // stores indexes of selected tiles
   late List<List<dynamic>> originalBracketList;
 
-  List<List<List<dynamic>>> undoStack = [];
-  List<List<List<dynamic>>> redoStack = [];
+  List<Map<String, dynamic>> undoStack = [];
+  List<Map<String, dynamic>> redoStack = [];
 
   // Changed from hardcoded list to dynamic list from Firebase
   List<Map<String, dynamic>> bracketList = [];
@@ -31,6 +31,14 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   String? currentUserId;
   final FirebaseAuthService _authService = FirebaseAuthService();
+
+  // Controllers for editing
+  Map<String, TextEditingController> _nameControllers = {};
+  Map<String, TextEditingController> _wifiControllers = {};
+
+  // Track unsaved changes for undo/redo functionality
+  Map<String, String> _originalNames = {};
+  Map<String, String> _originalWifiNames = {};
   @override
   void initState() {
     super.initState();
@@ -65,6 +73,12 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
 
         data.forEach((key, value) async {
           final cbData = Map<String, dynamic>.from(value as Map);
+
+          // Check if CB already exists in our local list (for ownership validation)
+          final existingCbIndex =
+              bracketList.indexWhere((cb) => cb['scbId'] == key);
+          final isAlreadyOwned = existingCbIndex != -1;
+
           // Only load circuit breakers owned by current user
           if (box.read('accountType') == 'Admin' ||
               box.read('accountType') == 'Staff') {
@@ -74,7 +88,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
               Map<String, dynamic> data =
                   userData.data() as Map<String, dynamic>;
 
-              if (cbData['ownerId'] == data['createdBy']) {
+              if (cbData['ownerId'] == data['createdBy'] && !isAlreadyOwned) {
                 setState(() {
                   loadedCBs.add({
                     'scbId': key,
@@ -94,7 +108,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
               }
             }
           } else {
-            if (cbData['ownerId'] == currentUserId) {
+            if (cbData['ownerId'] == currentUserId && !isAlreadyOwned) {
               setState(() {
                 loadedCBs.add({
                   'scbId': key,
@@ -131,7 +145,35 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
   // Switch Changed - Update Firebase
   Future<void> switchChanged(bool? value, int index) async {
     final cb = bracketList[index];
-    final newState = !cb['isOn'];
+    final currentState = cb['isOn'] ?? false;
+    final newState = !currentState;
+    final action = newState ? 'turn ON' : 'turn OFF';
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirm Circuit Breaker Action'),
+          content: Text('Are you sure you want to $action ${cb['scbName']}?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: newState ? Colors.red : Color(0xFF2ECC71),
+              ),
+              child: Text(action.toUpperCase()),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
 
     // Optimistically update UI
     setState(() {
@@ -144,10 +186,18 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
           .child('circuitBreakers')
           .child(cb['scbId'])
           .update({'isOn': newState});
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${cb['scbName']} turned ${newState ? 'ON' : 'OFF'}'),
+          duration: Duration(seconds: 2),
+        ),
+      );
     } catch (e) {
       // Revert on error
       setState(() {
-        bracketList[index]['isOn'] = !newState;
+        bracketList[index]['isOn'] = currentState;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating circuit breaker: $e')),
@@ -212,7 +262,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
     );
 
     try {
-      // Delete each circuit breaker
+      // Delete each circuit breaker from Firebase
       for (String scbId in selectedIds) {
         await _dbRef.child('circuitBreakers').child(scbId).remove();
       }
@@ -251,6 +301,225 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
         ),
       );
     }
+  }
+
+  // Save circuit breaker name
+  Future<void> _saveCircuitBreakerName(String scbId, int index) async {
+    final controller = _nameControllers[scbId];
+    if (controller == null) return;
+
+    final newName = controller.text.trim();
+    if (newName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Circuit breaker name cannot be empty')),
+      );
+      return;
+    }
+
+    if (newName == bracketList[index]['scbName']) {
+      return; // No change needed
+    }
+
+    try {
+      // Update in Firebase
+      await _dbRef
+          .child('circuitBreakers')
+          .child(scbId)
+          .update({'scbName': newName});
+
+      // Update local state
+      setState(() {
+        bracketList[index]['scbName'] = newName;
+
+        // Update selectedBracketNames if this item was selected
+        if (selectedBracketNames.contains(bracketList[index]['scbName'])) {
+          selectedBracketNames.remove(bracketList[index]['scbName']);
+          selectedBracketNames.add(newName);
+        }
+
+        // Clear original name since it's now saved
+        _originalNames.remove(scbId);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Circuit breaker name updated successfully'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating circuit breaker name: $e')),
+      );
+    }
+  }
+
+  // Save circuit breaker WiFi
+  Future<void> _saveCircuitBreakerWifi(String scbId, int index) async {
+    final controller = _wifiControllers[scbId];
+    if (controller == null) return;
+
+    final newWifiName = controller.text.trim();
+    if (newWifiName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('WiFi name cannot be empty')),
+      );
+      return;
+    }
+
+    if (newWifiName == bracketList[index]['wifiName']) {
+      return; // No change needed
+    }
+
+    try {
+      // Update in Firebase
+      await _dbRef
+          .child('circuitBreakers')
+          .child(scbId)
+          .update({'wifiName': newWifiName});
+
+      // Update local state
+      setState(() {
+        bracketList[index]['wifiName'] = newWifiName;
+
+        // Clear original WiFi name since it's now saved
+        _originalWifiNames.remove(scbId);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('WiFi connection updated successfully'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating WiFi connection: $e')),
+      );
+    }
+  }
+
+  // Check if undo is available
+  bool get _canUndo => undoStack.isNotEmpty;
+
+  // Check if redo is available
+  bool get _canRedo => redoStack.isNotEmpty;
+
+  // Cancel edit mode and discard changes
+  void _cancelEditMode() {
+    setState(() {
+      isEditMode = false;
+      selectedBracketNames.clear();
+
+      // Revert all unsaved changes
+      for (String scbId in _originalNames.keys.toList()) {
+        if (_nameControllers.containsKey(scbId)) {
+          _nameControllers[scbId]!.text = _originalNames[scbId] ?? '';
+        }
+        if (_wifiControllers.containsKey(scbId)) {
+          _wifiControllers[scbId]!.text = _originalWifiNames[scbId] ?? '';
+        }
+      }
+
+      // Clear tracking
+      _originalNames.clear();
+      _originalWifiNames.clear();
+      undoStack.clear();
+      redoStack.clear();
+    });
+  }
+
+  // Undo changes
+  void _undoChanges() {
+    if (!_canUndo) return;
+
+    // Save current state to redo stack
+    redoStack.add(_createSnapshot());
+
+    // Restore previous state from undo stack
+    final previousState = undoStack.removeLast();
+    _restoreFromSnapshot(previousState);
+
+    setState(() {});
+  }
+
+  // Redo changes
+  void _redoChanges() {
+    if (!_canRedo) return;
+
+    // Save current state to undo stack
+    undoStack.add(_createSnapshot());
+
+    // Restore next state from redo stack
+    final nextState = redoStack.removeLast();
+    _restoreFromSnapshot(nextState);
+
+    setState(() {});
+  }
+
+  // Save all changes
+  void _saveAllChanges() async {
+    // Save all current changes to Firebase
+    for (String scbId in _nameControllers.keys) {
+      if (_nameControllers.containsKey(scbId)) {
+        await _saveCircuitBreakerName(
+            scbId, bracketList.indexWhere((cb) => cb['scbId'] == scbId));
+      }
+    }
+
+    for (String scbId in _wifiControllers.keys) {
+      if (_wifiControllers.containsKey(scbId)) {
+        await _saveCircuitBreakerWifi(
+            scbId, bracketList.indexWhere((cb) => cb['scbId'] == scbId));
+      }
+    }
+
+    // Clear tracking and exit edit mode
+    setState(() {
+      isEditMode = false;
+      selectedBracketNames.clear();
+      _originalNames.clear();
+      _originalWifiNames.clear();
+      undoStack.clear();
+      redoStack.clear();
+    });
+  }
+
+  // Create a snapshot of current state
+  Map<String, dynamic> _createSnapshot() {
+    final Map<String, dynamic> snapshot = {};
+
+    for (String scbId in _nameControllers.keys) {
+      if (_nameControllers.containsKey(scbId)) {
+        snapshot[scbId] = _nameControllers[scbId]!.text;
+      }
+    }
+
+    for (String scbId in _wifiControllers.keys) {
+      if (_wifiControllers.containsKey(scbId)) {
+        snapshot['${scbId}_wifi'] = _wifiControllers[scbId]!.text;
+      }
+    }
+
+    return snapshot;
+  }
+
+  // Restore state from snapshot
+  void _restoreFromSnapshot(Map<String, dynamic> snapshot) {
+    for (String key in snapshot.keys) {
+      if (key.endsWith('_wifi')) {
+        final scbId = key.replaceAll('_wifi', '');
+        if (_wifiControllers.containsKey(scbId)) {
+          _wifiControllers[scbId]!.text = snapshot[key];
+        }
+      } else {
+        if (_nameControllers.containsKey(key)) {
+          _nameControllers[key]!.text = snapshot[key];
+        }
+      }
+    }
+
+    setState(() {});
   }
 
   // Show edit mode confirmation dialog
@@ -526,6 +795,20 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                                 itemCount: bracketList.length,
                                 itemBuilder: (context, index) {
                                   final cb = bracketList[index];
+                                  final scbId = cb['scbId'];
+
+                                  // Initialize controllers if not already done
+                                  if (!_nameControllers.containsKey(scbId)) {
+                                    _nameControllers[scbId] =
+                                        TextEditingController(
+                                            text: cb['scbName']);
+                                  }
+                                  if (!_wifiControllers.containsKey(scbId)) {
+                                    _wifiControllers[scbId] =
+                                        TextEditingController(
+                                            text: cb['wifiName'] ?? '');
+                                  }
+
                                   return CircuitBreakerTile(
                                     bracketName: cb['scbName'],
                                     turnOn: cb['isOn'],
@@ -546,6 +829,20 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                                       });
                                     },
                                     cbData: cb, // Pass complete CB data
+                                    nameController: isEditMode
+                                        ? _nameControllers[scbId]
+                                        : null,
+                                    wifiController: isEditMode
+                                        ? _wifiControllers[scbId]
+                                        : null,
+                                    onSaveName: isEditMode
+                                        ? () => _saveCircuitBreakerName(
+                                            scbId, index)
+                                        : null,
+                                    onSaveWifi: isEditMode
+                                        ? () => _saveCircuitBreakerWifi(
+                                            scbId, index)
+                                        : null,
                                   );
                                 },
                               ),
@@ -606,11 +903,84 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                             ),
                             child: Text('Cancel', textAlign: TextAlign.center),
                             onPressed: () {
-                              setState(() {
-                                isEditMode = false;
-                                selectedBracketNames.clear();
-                              });
+                              _cancelEditMode();
                             },
+                          ),
+                        ),
+
+                        // Undo Button
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.25),
+                                offset: Offset(0, 4), // x, y offset
+                                blurRadius: 2,
+                                spreadRadius: 0,
+                              ),
+                            ],
+                            borderRadius: BorderRadius.circular(50),
+                          ),
+                          child: ElevatedButton(
+                            style: ButtonStyle(
+                              padding: MaterialStateProperty.all<EdgeInsets>(
+                                EdgeInsets.zero,
+                              ),
+                              foregroundColor: MaterialStateProperty.all<Color>(
+                                Colors.black,
+                              ),
+                              backgroundColor: MaterialStateProperty.all<Color>(
+                                Colors.white,
+                              ),
+                              shape: MaterialStateProperty.all<
+                                  RoundedRectangleBorder>(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                              ),
+                            ),
+                            child: Icon(Icons.undo, size: 20),
+                            onPressed: _canUndo ? _undoChanges : null,
+                          ),
+                        ),
+
+                        // Redo Button
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.25),
+                                offset: Offset(0, 4), // x, y offset
+                                blurRadius: 2,
+                                spreadRadius: 0,
+                              ),
+                            ],
+                            borderRadius: BorderRadius.circular(50),
+                          ),
+                          child: ElevatedButton(
+                            style: ButtonStyle(
+                              padding: MaterialStateProperty.all<EdgeInsets>(
+                                EdgeInsets.zero,
+                              ),
+                              foregroundColor: MaterialStateProperty.all<Color>(
+                                Colors.black,
+                              ),
+                              backgroundColor: MaterialStateProperty.all<Color>(
+                                Colors.white,
+                              ),
+                              shape: MaterialStateProperty.all<
+                                  RoundedRectangleBorder>(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                              ),
+                            ),
+                            child: Icon(Icons.redo, size: 20),
+                            onPressed: _canRedo ? _redoChanges : null,
                           ),
                         ),
 
@@ -649,10 +1019,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                             ),
                             child: Text('Done', textAlign: TextAlign.center),
                             onPressed: () {
-                              setState(() {
-                                isEditMode = false;
-                                selectedBracketNames.clear();
-                              });
+                              _saveAllChanges();
                             },
                           ),
                         ),

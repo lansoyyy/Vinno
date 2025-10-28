@@ -11,6 +11,10 @@ class CircuitBreakerTile extends StatelessWidget {
   final bool isSelected;
   final Function(bool?)? onCheckboxChanged;
   final Map<String, dynamic>? cbData; // Added circuit breaker data
+  final TextEditingController? nameController; // For editing name
+  final TextEditingController? wifiController; // For editing WiFi
+  final VoidCallback? onSaveName; // Callback to save name
+  final VoidCallback? onSaveWifi; // Callback to save WiFi
 
   CircuitBreakerTile({
     super.key,
@@ -21,6 +25,10 @@ class CircuitBreakerTile extends StatelessWidget {
     required this.isSelected,
     required this.onCheckboxChanged,
     this.cbData, // Optional CB data
+    this.nameController, // Optional name controller
+    this.wifiController, // Optional WiFi controller
+    this.onSaveName, // Optional save name callback
+    this.onSaveWifi, // Optional save WiFi callback
   });
 
   @override
@@ -40,36 +48,135 @@ class CircuitBreakerTile extends StatelessWidget {
         child: Container(
           child: Padding(
             padding: const EdgeInsets.all(20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Main row with checkbox, name, and switch
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    //Checkbox
-                    if (isEditMode)
-                      Checkbox(value: isSelected, onChanged: onCheckboxChanged),
-                    if (isEditMode) SizedBox(width: 10),
-
-                    Column(
+                    Row(
                       children: [
-                        //Task Name
-                        Text(bracketName, style: TextStyle(fontSize: 18)),
+                        //Checkbox
+                        if (isEditMode)
+                          Checkbox(
+                              value: isSelected, onChanged: onCheckboxChanged),
+                        if (isEditMode) SizedBox(width: 10),
+
+                        // Name field or display
+                        isEditMode && nameController != null
+                            ? SizedBox(
+                                width: 150,
+                                height: 50,
+                                child: TextField(
+                                  controller: nameController,
+                                  decoration: InputDecoration(
+                                    hintText: "Circuit Breaker Name",
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide:
+                                          BorderSide(color: Colors.grey),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide:
+                                          BorderSide(color: Color(0xFF2ECC71)),
+                                    ),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              )
+                            : SizedBox(
+                                width: 225,
+                                child: Text(bracketName,
+                                    maxLines: 2,
+                                    style: TextStyle(fontSize: 18))),
+
+                        // Save button for name (only in edit mode)
+                        if (isEditMode && nameController != null) ...[
+                          SizedBox(width: 10),
+                          ElevatedButton(
+                            onPressed: onSaveName,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Color(0xFF2ECC71),
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text('Save'),
+                          ),
+                        ],
                       ],
                     ),
+
+                    // Switch (only in normal mode)
+                    if (!isEditMode)
+                      Switch(
+                        value: turnOn,
+                        onChanged: onChanged,
+                        activeColor: Color.fromARGB(255, 0, 205, 86),
+                        inactiveTrackColor: Color(0xFEE9E9E9),
+                        thumbColor: MaterialStateProperty.all(
+                          turnOn
+                              ? const Color(0xFFFFFFFF)
+                              : const Color(0xFFFFFFFF),
+                        ),
+                      ),
                   ],
                 ),
-                if (!isEditMode)
-                  Switch(
-                    value: turnOn,
-                    onChanged: onChanged,
-                    activeColor: Color.fromARGB(255, 0, 205, 86),
-                    inactiveTrackColor: Color(0xFEE9E9E9),
-                    thumbColor: MaterialStateProperty.all(
-                      turnOn
-                          ? const Color(0xFFFFFFFF)
-                          : const Color(0xFFFFFFFF),
-                    ),
+
+                // WiFi editing section (only in edit mode)
+                if (isEditMode && wifiController != null) ...[
+                  SizedBox(height: 15),
+                  Row(
+                    children: [
+                      Icon(Icons.wifi, size: 20, color: Colors.grey[600]),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: wifiController,
+                          decoration: InputDecoration(
+                            hintText: "WiFi Network Name",
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Colors.grey),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Color(0xFF2ECC71)),
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      ElevatedButton(
+                        onPressed: onSaveWifi,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFF2ECC71),
+                          foregroundColor: Colors.white,
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Text('Save WiFi'),
+                      ),
+                    ],
                   ),
+                ],
               ],
             ),
           ),
