@@ -76,7 +76,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
       // Navigate to login screen and clear all routes
       Navigator.of(context).pushNamedAndRemoveUntil(
-        '/',
+        '/login',
         (route) => false,
       );
     } catch (e) {

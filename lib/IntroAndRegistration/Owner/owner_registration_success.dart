@@ -74,22 +74,15 @@ class _OwnerRegistrationSuccessState extends State<OwnerRegistrationSuccess> {
                 // Okay Button
                 ElevatedButton(
                   onPressed: () async {
-                    // Ensure user is signed in before proceeding
-                    if (_authService.currentUser == null) {
-                      // If user is not signed in (rare case), navigate to login
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/privacy',
-                        (route) => false,
-                      );
-                    } else {
-                      // User is signed in, proceed to privacy policy
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/privacy',
-                        (route) => false,
-                      );
-                    }
+                    // Sign out the user after successful registration
+                    await _authService.signOut();
+
+                    // Navigate to login page
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/',
+                      (route) => false,
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4CAF50),

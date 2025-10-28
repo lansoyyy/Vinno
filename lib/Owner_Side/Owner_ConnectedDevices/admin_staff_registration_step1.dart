@@ -52,8 +52,22 @@ class _AdminStaffRegistrationStep1State
       return;
     }
 
+    // Name validation - only alphabetic characters allowed
+    if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(name)) {
+      _showMessage("Name must only contain letters (no numbers or symbols).");
+      return;
+    }
+
+    // Age validation - must be numeric
     if (int.tryParse(age) == null || int.parse(age) <= 0) {
       _showMessage("Please enter a valid age.");
+      return;
+    }
+
+    // Mobile number validation - must be exactly 11 digits and start with "09"
+    if (!RegExp(r'^09\d{9}$').hasMatch(mobile)) {
+      _showMessage(
+          "Mobile number must be exactly 11 digits and start with '09'.");
       return;
     }
 

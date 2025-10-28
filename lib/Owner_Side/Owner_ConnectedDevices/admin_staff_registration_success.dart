@@ -74,39 +74,16 @@ class _AdminStaffRegistrationSuccessState
 
                 const SizedBox(height: 80),
 
-                // Go back to Managers Button
+                // Go to Login Button
                 ElevatedButton(
                   onPressed: () async {
-                    // Check if the current user is the newly created admin/staff
-                    User? currentUser = _authService.currentUser;
-                    if (currentUser != null) {
-                      // Get user data to check account type
-                      DocumentSnapshot? userData =
-                          await _authService.getUserData(currentUser.uid);
-                      if (userData != null && userData.exists) {
-                        Map<String, dynamic> data =
-                            userData.data() as Map<String, dynamic>;
-                        String accountType = data['accountType'] ?? '';
+                    // Sign out any current user after successful registration
+                    await _authService.signOut();
 
-                        // If current user is Admin or Staff, sign them out
-                        if (accountType == 'Admin' || accountType == 'Staff') {
-                          await _authService.signOut();
-
-                          // Navigate to login page since the owner is not signed in
-                          Navigator.pushNamedAndRemoveUntil(
-                            context,
-                            '/',
-                            (route) => false,
-                          );
-                          return;
-                        }
-                      }
-                    }
-
-                    // Navigate back to connected devices/managers page
+                    // Navigate to login page
                     Navigator.pushNamedAndRemoveUntil(
                       context,
-                      '/connectedDevices',
+                      '/',
                       (route) => false,
                     );
                   },
@@ -123,7 +100,7 @@ class _AdminStaffRegistrationSuccessState
                     elevation: 3,
                   ),
                   child: const Text(
-                    "Go back to Managers",
+                    "Go to Login",
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

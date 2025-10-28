@@ -38,13 +38,24 @@ class _OwnerRegistrationStep2State extends State<OwnerRegistrationStep2> {
       return;
     }
 
-    if (!email.contains('@')) {
-      _showMessage("Please enter a valid email address.");
+    // Email validation - must contain a valid email format with a domain
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      _showMessage(
+          "Please enter a valid email address with a domain (e.g., '@gmail.com').");
       return;
     }
 
-    if (password.length < 6) {
-      _showMessage("Password must be at least 6 characters.");
+    // Password validation - minimum 8 characters with uppercase, lowercase, numbers, and special characters
+    if (password.length < 8) {
+      _showMessage("Password must be at least 8 characters long.");
+      return;
+    }
+
+    if (!RegExp(
+            r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$')
+        .hasMatch(password)) {
+      _showMessage(
+          "Password must contain uppercase, lowercase, numbers, and special characters.");
       return;
     }
 
