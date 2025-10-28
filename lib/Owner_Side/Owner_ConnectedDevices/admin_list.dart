@@ -15,7 +15,6 @@ class AdminLists extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool isActive = adminData['isActive'] ?? true;
     String adminName = adminData['name'] ?? 'Unknown Admin';
 
     return Padding(
@@ -35,39 +34,39 @@ class AdminLists extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.person,
                       size: 40,
-                      color: isActive ? Colors.green : Colors.grey,
+                      color: Colors.green,
                     ),
                     const SizedBox(width: 14),
                     // Admin Name
                     Text(
                       adminName,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
-                        color: isActive ? Colors.black : Colors.grey,
+                        color: Colors.black,
                       ),
                     ),
                   ],
                 ),
 
-                // Block/Unblock button
+                // Block button (only for non-Admin accounts)
                 box.read('accountType') == 'Admin'
-                    ? SizedBox()
+                    ? const SizedBox()
                     : GestureDetector(
                         onTap: onToggleStatus,
-                        child: Icon(
-                          isActive ? Icons.block : Icons.check_circle,
-                          color: isActive ? Colors.red : Colors.green,
+                        child: const Icon(
+                          Icons.block,
+                          color: Colors.red,
                         ),
                       ),
               ],
             ),
           ),
           decoration: BoxDecoration(
-            color: isActive ? const Color(0xFFF9F9F9) : Colors.grey.shade300,
+            color: const Color(0xFFF9F9F9),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(

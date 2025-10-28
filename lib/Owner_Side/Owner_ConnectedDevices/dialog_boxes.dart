@@ -223,6 +223,33 @@ void showBlockListDialog(BuildContext context) {
                                     color: Colors.blue,
                                   ),
                                   onPressed: () async {
+                                    // Show confirmation dialog before unblocking
+                                    bool confirm = await showDialog<bool>(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: const Text('Unblock Admin'),
+                                            content: const Text(
+                                                'Are you sure you want to unblock this admin?'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                    context, false),
+                                                child: const Text('Cancel'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                    context, true),
+                                                child: const Text('Unblock',
+                                                    style: TextStyle(
+                                                        color: Colors.green)),
+                                              ),
+                                            ],
+                                          ),
+                                        ) ??
+                                        false;
+
+                                    if (!confirm) return;
+
                                     // Handle unblock action
                                     String? error =
                                         await _authService.toggleUserStatus(
@@ -297,6 +324,33 @@ void showBlockListDialog(BuildContext context) {
                                     color: Colors.blue,
                                   ),
                                   onPressed: () async {
+                                    // Show confirmation dialog before unblocking
+                                    bool confirm = await showDialog<bool>(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: const Text('Unblock Staff'),
+                                            content: const Text(
+                                                'Are you sure you want to unblock this staff?'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                    context, false),
+                                                child: const Text('Cancel'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                    context, true),
+                                                child: const Text('Unblock',
+                                                    style: TextStyle(
+                                                        color: Colors.green)),
+                                              ),
+                                            ],
+                                          ),
+                                        ) ??
+                                        false;
+
+                                    if (!confirm) return;
+
                                     // Handle unblock action
                                     String? error =
                                         await _authService.toggleUserStatus(

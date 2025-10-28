@@ -56,20 +56,22 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
             ownerData = ownerDoc.data() as Map<String, dynamic>;
           }
 
-          // Get admins created by this owner
+          // Get only active admins created by this owner
           QuerySnapshot adminSnapshot =
               await _authService.getAdmins(userData!['createdBy']);
           adminList = adminSnapshot.docs
               .map((doc) =>
                   {'id': doc.id, ...doc.data() as Map<String, dynamic>})
+              .where((admin) => admin['isActive'] == true)
               .toList();
 
-          // Get staff created by this owner
+          // Get only active staff created by this owner
           QuerySnapshot staffSnapshot =
               await _authService.getStaff(userData!['createdBy']);
           staffList = staffSnapshot.docs
               .map((doc) =>
                   {'id': doc.id, ...doc.data() as Map<String, dynamic>})
+              .where((staff) => staff['isActive'] == true)
               .toList();
         }
       } else {
@@ -81,20 +83,22 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
             ownerData = ownerDoc.data() as Map<String, dynamic>;
           }
 
-          // Get admins created by this owner
+          // Get only active admins created by this owner
           QuerySnapshot adminSnapshot =
               await _authService.getAdmins(currentUser.uid);
           adminList = adminSnapshot.docs
               .map((doc) =>
                   {'id': doc.id, ...doc.data() as Map<String, dynamic>})
+              .where((admin) => admin['isActive'] == true)
               .toList();
 
-          // Get staff created by this owner
+          // Get only active staff created by this owner
           QuerySnapshot staffSnapshot =
               await _authService.getStaff(currentUser.uid);
           staffList = staffSnapshot.docs
               .map((doc) =>
                   {'id': doc.id, ...doc.data() as Map<String, dynamic>})
+              .where((staff) => staff['isActive'] == true)
               .toList();
         }
       }
@@ -361,21 +365,44 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
     if (adminList.isEmpty) return;
 
     Map<String, dynamic> admin = adminList[index];
-    bool newStatus = !(admin['isActive'] ?? true);
 
+    // Show confirmation dialog before blocking
+    bool confirm = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Block Admin'),
+            content: Text('Are you sure you want to block ${admin['name']}?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Block', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirm) return;
+
+    // Block the admin (set isActive to false)
     String? error = await _authService.toggleUserStatus(
       admin['id'],
       'Admin',
-      newStatus,
+      false, // Always blocking (setting to inactive)
     );
 
     if (error == null) {
+      // Remove from the active list since they are now blocked
       setState(() {
-        adminList[index]['isActive'] = newStatus;
+        adminList.removeAt(index);
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(newStatus ? 'Admin unblocked' : 'Admin blocked'),
+        const SnackBar(
+          content: Text('Admin has been blocked and moved to Blocklist'),
         ),
       );
     } else {
@@ -389,21 +416,44 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
     if (staffList.isEmpty) return;
 
     Map<String, dynamic> staff = staffList[index];
-    bool newStatus = !(staff['isActive'] ?? true);
 
+    // Show confirmation dialog before blocking
+    bool confirm = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Block Staff'),
+            content: Text('Are you sure you want to block ${staff['name']}?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Block', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirm) return;
+
+    // Block the staff (set isActive to false)
     String? error = await _authService.toggleUserStatus(
       staff['id'],
       'Staff',
-      newStatus,
+      false, // Always blocking (setting to inactive)
     );
 
     if (error == null) {
+      // Remove from the active list since they are now blocked
       setState(() {
-        staffList[index]['isActive'] = newStatus;
+        staffList.removeAt(index);
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(newStatus ? 'Staff unblocked' : 'Staff blocked'),
+        const SnackBar(
+          content: Text('Staff has been blocked and moved to Blocklist'),
         ),
       );
     } else {

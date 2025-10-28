@@ -96,7 +96,7 @@ class _AdminStaffRegistrationStep1State
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
@@ -136,7 +136,7 @@ class _AdminStaffRegistrationStep1State
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.of(dialogContext).pop();
               },
               child: const Text(
                 'Cancel',
@@ -151,21 +151,54 @@ class _AdminStaffRegistrationStep1State
                   return;
                 }
 
-                Navigator.of(context).pop();
+                // Close the password dialog first
+                Navigator.of(dialogContext).pop();
 
-                // Navigate to step 2 with data
+                // Show loading indicator with a separate context
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (loadingContext) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
 
-                if (widget.accountType == 'Admin') {
+                try {
+                  // Verify the owner's password by attempting to re-authenticate
                   User? currentUser = _authService.currentUser;
-                  DocumentSnapshot? userData =
-                      await _authService.getUserData(currentUser!.uid ?? '');
-                  if (userData != null && userData.exists) {
-                    Map<String, dynamic> data =
-                        userData.data() as Map<String, dynamic>;
-                    Navigator.pushNamed(
-                      context,
-                      '/admin_staff_registration_step2',
-                      arguments: {
+                  if (currentUser == null) {
+                    // Close loading dialog using a different approach
+                    Navigator.of(context, rootNavigator: true).pop();
+                    _showMessage("Owner session expired. Please log in again.");
+                    return;
+                  }
+
+                  // Create a credential to verify the password
+                  AuthCredential credential = EmailAuthProvider.credential(
+                    email: ownerEmail,
+                    password: password,
+                  );
+
+                  // Re-authenticate to verify password
+                  await currentUser.reauthenticateWithCredential(credential);
+
+                  // Close loading dialog using rootNavigator to avoid context issues
+                  Navigator.of(context, rootNavigator: true).pop();
+
+                  // Check if widget is still mounted
+                  if (!mounted) return;
+
+                  // Prepare navigation arguments
+                  Map<String, dynamic> navigationArgs;
+
+                  if (widget.accountType == 'Admin') {
+                    DocumentSnapshot? userData =
+                        await _authService.getUserData(currentUser.uid);
+                    if (userData != null && userData.exists) {
+                      Map<String, dynamic> data =
+                          userData.data() as Map<String, dynamic>;
+
+                      navigationArgs = {
                         'accountType': widget.accountType,
                         'name': name,
                         'age': age,
@@ -175,25 +208,87 @@ class _AdminStaffRegistrationStep1State
                         'createdBy': data['createdBy'],
                         'ownerEmail': ownerEmail,
                         'ownerPassword': password,
-                      },
-                    );
-                  }
-                } else {
-                  Navigator.pushNamed(
-                    context,
-                    '/admin_staff_registration_step2',
-                    arguments: {
+                      };
+                    } else {
+                      // Fallback if userData is not available
+                      navigationArgs = {
+                        'accountType': widget.accountType,
+                        'name': name,
+                        'age': age,
+                        'address': address,
+                        'mobile': mobile,
+                        'birthday': birthday,
+                        'createdBy': ownerId,
+                        'ownerEmail': ownerEmail,
+                        'ownerPassword': password,
+                      };
+                    }
+                  } else {
+                    navigationArgs = {
                       'accountType': widget.accountType,
                       'name': name,
                       'age': age,
                       'address': address,
                       'mobile': mobile,
                       'birthday': birthday,
-                      'createdBy': ownerId, // Pass the owner's ID
-                      'ownerEmail': ownerEmail, // Pass the owner's email
-                      'ownerPassword': password, // Pass the owner's password
-                    },
+                      'createdBy': ownerId,
+                      'ownerEmail': ownerEmail,
+                      'ownerPassword': password,
+                    };
+                  }
+
+                  // Check if widget is still mounted before navigating
+                  if (!mounted) return;
+
+                  // Navigate to step 2 with data
+                  Navigator.pushNamed(
+                    context,
+                    '/admin_staff_registration_step2',
+                    arguments: navigationArgs,
                   );
+                } on FirebaseAuthException catch (e) {
+                  // Close loading dialog using rootNavigator to avoid context issues
+                  try {
+                    Navigator.of(context, rootNavigator: true).pop();
+                  } catch (e) {
+                    // Dialog might already be closed, ignore
+                  }
+
+                  String errorMessage = 'Authentication failed';
+                  switch (e.code) {
+                    case 'invalid-credential':
+                    case 'wrong-password':
+                      errorMessage =
+                          'Invalid password. Please check your password and try again.';
+                      break;
+                    case 'user-mismatch':
+                      errorMessage = 'Session mismatch. Please log in again.';
+                      break;
+                    case 'user-not-found':
+                      errorMessage =
+                          'Owner account not found. Please log in again.';
+                      break;
+                    default:
+                      errorMessage = 'Authentication failed: ${e.message}';
+                  }
+
+                  // Check if widget is still mounted before showing message
+                  if (mounted) {
+                    _showMessage(errorMessage);
+                  }
+                } catch (e) {
+                  // Close loading dialog using rootNavigator to avoid context issues
+                  try {
+                    Navigator.of(context, rootNavigator: true).pop();
+                  } catch (e) {
+                    // Dialog might already be closed, ignore
+                  }
+
+                  // Check if widget is still mounted before showing message
+                  if (mounted) {
+                    _showMessage(
+                        "An unexpected error occurred. Please try again.");
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(

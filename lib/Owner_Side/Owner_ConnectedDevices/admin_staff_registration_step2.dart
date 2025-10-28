@@ -110,29 +110,111 @@ class _AdminStaffRegistrationStep2State
       }
     }
 
-    String? error = await _authService.registerAdminOrStaff(
-      email: email,
-      password: password,
-      name: args['name'],
-      age: args['age'],
-      address: args['address'],
-      mobile: args['mobile'],
-      birthday: args['birthday'],
-      accountType: accountType,
-      ownerId: ownerId,
-      ownerEmail: args['ownerEmail'] ?? '',
-      ownerPassword: args['ownerPassword'] ?? '',
-    );
+    try {
+      // First, validate the owner's credentials before proceeding
+      String ownerEmail = args['ownerEmail'] ?? '';
+      String ownerPassword = args['ownerPassword'] ?? '';
 
-    setState(() {
-      _isLoading = false;
-    });
+      if (ownerEmail.isEmpty || ownerPassword.isEmpty) {
+        _showMessage("Owner credentials are missing. Please start over.");
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
 
-    if (error != null) {
-      _showMessage(error);
-    } else {
-      // Show email verification dialog
-      _showEmailVerificationDialog();
+      // Re-authenticate the owner to ensure they have valid credentials
+      User? currentUser = _authService.currentUser;
+      if (currentUser == null) {
+        _showMessage("Owner session expired. Please log in again.");
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Create a credential to verify the owner's password
+      AuthCredential credential = EmailAuthProvider.credential(
+        email: ownerEmail,
+        password: ownerPassword,
+      );
+
+      // Re-authenticate the owner with their credentials
+      await currentUser.reauthenticateWithCredential(credential);
+
+      // If re-authentication is successful, proceed with registration
+      String? error = await _authService.registerAdminOrStaff(
+        email: email,
+        password: password,
+        name: args['name'],
+        age: args['age'],
+        address: args['address'],
+        mobile: args['mobile'],
+        birthday: args['birthday'],
+        accountType: accountType,
+        ownerId: ownerId,
+        ownerEmail: ownerEmail,
+        ownerPassword: ownerPassword,
+      );
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (error != null) {
+        // Check if widget is still mounted before showing message
+        if (mounted) {
+          _showMessage(error);
+        }
+      } else {
+        // Check if widget is still mounted before showing dialog
+        if (mounted) {
+          // Show email verification dialog
+          _showEmailVerificationDialog();
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Handle specific Firebase Auth errors
+      String errorMessage = 'Registration failed';
+      switch (e.code) {
+        case 'invalid-credential':
+          errorMessage =
+              'Invalid owner credentials. Please check your password and try again.';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Invalid owner password. Please verify and try again.';
+          break;
+        case 'user-mismatch':
+          errorMessage = 'Owner session mismatch. Please log in again.';
+          break;
+        case 'user-not-found':
+          errorMessage = 'Owner account not found. Please log in again.';
+          break;
+        case 'email-already-in-use':
+          errorMessage =
+              'This email is already registered. Please use a different email.';
+          break;
+        case 'weak-password':
+          errorMessage =
+              'Password is too weak. Please choose a stronger password.';
+          break;
+        case 'invalid-email':
+          errorMessage =
+              'Invalid email format. Please enter a valid email address.';
+          break;
+        default:
+          errorMessage = 'Registration failed: ${e.message}';
+      }
+      _showMessage(errorMessage);
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showMessage('An unexpected error occurred. Please try again.');
     }
   }
 
