@@ -19,7 +19,8 @@ class _WarningsState extends State<Warnings> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Get scbId from route arguments
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     if (args != null) {
       scbId = args['scbId'];
     }
@@ -55,7 +56,7 @@ class _WarningsState extends State<Warnings> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     return Scaffold(
       backgroundColor: Color(0xFFFFFFFF),
       body: StreamBuilder<QuerySnapshot>(
@@ -87,106 +88,117 @@ class _WarningsState extends State<Warnings> {
           final alarms = snapshot.data!.docs;
 
           return Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: Column(
-                children: [
-                  Table(
-                          border: TableBorder.symmetric(
-                            inside: BorderSide(color: Colors.transparent),
-                            outside: BorderSide(color: Colors.transparent),
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: Column(
+                    children: [
+                      Table(
+                        border: TableBorder.symmetric(
+                          inside: BorderSide(color: Colors.transparent),
+                          outside: BorderSide(color: Colors.transparent),
+                        ),
+                        columnWidths: const {
+                          0: FlexColumnWidth(3), // "Date" column (narrower)
+                          1: FlexColumnWidth(1.1), // "Time" column (wider)
+                        },
+                        children: [
+                          // Header Row
+                          TableRow(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.symmetric(vertical: 10),
+                                child: Text(
+                                  'Date',
+                                  textAlign: TextAlign.left,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.symmetric(vertical: 10),
+                                child: Text(
+                                  'Time',
+                                  textAlign: TextAlign.left,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          columnWidths: const {
-                            0: FlexColumnWidth(3), // "Date" column (narrower)
-                            1: FlexColumnWidth(1.1), // "Time" column (wider)
-                          },
-                          children: [
-                            // Header Row
+
+                          // Data Rows
+                          for (var doc in alarms)
                             TableRow(
                               children: [
                                 Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 10),
-                                  child: Text(
-                                    'Date',
-                                    textAlign: TextAlign.left,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _formatDate(doc['timestamp']),
+                                        textAlign: TextAlign.left,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${doc['type']} (ALARM)',
+                                        textAlign: TextAlign.left,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w300,
+                                          color: Colors.orange[700],
+                                        ),
+                                      ),
+                                      Text(
+                                        '${doc['currentValue']}${doc['unit']} / ${doc['thresholdValue']}${doc['unit']}',
+                                        textAlign: TextAlign.left,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w400,
+                                          color: Colors.orange[600],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 10),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
                                   child: Text(
-                                    'Time',
+                                    _formatTime(doc['timestamp']),
                                     textAlign: TextAlign.left,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w400,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-
-                            // Data Rows
-                            for (var doc in alarms)
-                              TableRow(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _formatDate(doc['timestamp']),
-                                          textAlign: TextAlign.left,
-                                          style: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w400,
-                                          ),
-                                        ),
-                                        Text(
-                                          '${doc['type']} (ALARM)',
-                                          textAlign: TextAlign.left,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w300,
-                                            color: Colors.orange[700],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                    ),
-                                    child: Text(
-                                      _formatTime(doc['timestamp']),
-                                      textAlign: TextAlign.left,
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w400,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
-                  SizedBox(height: 60),
-                ],
+                        ],
+                      ),
+                      SizedBox(height: 60),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
-      );
+            ],
+          );
         },
       ),
     );
@@ -201,9 +213,10 @@ class _WarningsState extends State<Warnings> {
   String _formatTime(Timestamp? timestamp) {
     if (timestamp == null) return 'Unknown';
     final date = timestamp.toDate();
-    final hour = date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
+    final hour =
+        date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
     final period = date.hour >= 12 ? 'PM' : 'AM';
-    return '${hour}:${date.minute.toString().padLeft(2, '0')} $period';
+    return '$hour:${date.minute.toString().padLeft(2, '0')} $period';
   }
 }
 

@@ -59,9 +59,7 @@ class _NavHistoryState extends State<NavHistory> {
                                   color: Colors.white,
                                 ),
                               ),
-
                               SizedBox(width: 15),
-
                               Text(
                                 'Trip History',
                                 textAlign: TextAlign.center,

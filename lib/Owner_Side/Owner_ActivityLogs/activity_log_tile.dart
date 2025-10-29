@@ -6,8 +6,16 @@ import 'package:smart_cb_1/Owner_Side/Owner_ActivityLogs/activity_log_date.dart'
 class HistoryTile extends StatelessWidget {
   final String dateName;
   final String dateYear;
+  final String scbId;
+  final List<Map<String, dynamic>>? eventData;
 
-  HistoryTile({super.key, required this.dateName, required this.dateYear});
+  HistoryTile({
+    super.key,
+    required this.dateName,
+    required this.dateYear,
+    this.scbId = '',
+    this.eventData,
+  });
 
   List<Map<String, dynamic>> eventEveryday = [
     {
@@ -126,7 +134,7 @@ class HistoryTile extends StatelessWidget {
 
                 // Days
                 Column(
-                  children: eventEveryday.map((event) {
+                  children: (eventData ?? eventEveryday).map((event) {
                     return Container(
                       margin: EdgeInsets.symmetric(vertical: 6),
                       child: Padding(
@@ -144,9 +152,11 @@ class HistoryTile extends StatelessWidget {
                                   dateDay: event['date'],
                                   dateYear: dateYear,
                                   day: event['day'],
-                                  activities: List<Map<String, dynamic>>.from(
-                                    event['activities'],
-                                  ),
+                                  scbId: scbId,
+                                  activities: event['activities'] != null
+                                      ? List<Map<String, dynamic>>.from(
+                                          event['activities'])
+                                      : null,
                                 ),
                               ),
                             );
@@ -169,7 +179,6 @@ class HistoryTile extends StatelessWidget {
                                         color: Colors.black,
                                       ),
                                     ),
-
                                     Padding(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 3.0,
@@ -183,7 +192,6 @@ class HistoryTile extends StatelessWidget {
                                         ),
                                       ),
                                     ),
-
                                     Text(
                                       event['day'] ?? '',
                                       style: TextStyle(
@@ -235,8 +243,8 @@ class HistoryTile extends StatelessWidget {
                         borderRadius: BorderRadius.circular(5),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(
-                              0.25,
+                            color: Colors.black.withValues(
+                              alpha: 0.25,
                             ), // Shadow color
                             offset: Offset(0, 4), // Shadow position
                             blurRadius: 2, // Blur effect

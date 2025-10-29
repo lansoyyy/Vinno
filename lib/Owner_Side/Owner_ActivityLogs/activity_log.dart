@@ -2,8 +2,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Navigation/navigation_page.dart';
+import 'package:smart_cb_1/Owner_Side/Owner_ActivityLogs/activity_log_tile.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:smart_cb_1/services/firebase_auth_service.dart';
 
 class History extends StatefulWidget {
   const History({super.key});
@@ -15,6 +17,8 @@ class History extends StatefulWidget {
 class _HistoryState extends State<History> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String? scbId;
+  Map<String, List<Map<String, dynamic>>> _groupedActivities = {};
+  bool _isLoading = true;
 
   @override
   void didChangeDependencies() {
@@ -24,7 +28,137 @@ class _HistoryState extends State<History> {
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     if (args != null) {
       scbId = args['scbId'];
+      _fetchActivityLogs();
     }
+  }
+
+  final FirebaseAuthService _authService = FirebaseAuthService();
+  Future<void> _fetchActivityLogs() async {
+    if (scbId == null) return;
+
+    try {
+      final snapshot = await _firestore
+          .collection('activityLogs')
+          .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+          .where('scbId', isEqualTo: scbId)
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      final Map<String, List<Map<String, dynamic>>> grouped = {};
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final timestamp = data['timestamp'] as Timestamp?;
+        if (timestamp == null) continue;
+        User? currentUser = _authService.currentUser;
+        final date = timestamp.toDate();
+        final monthYear = '${_getMonthName(date.month)} ${date.year}';
+        DocumentSnapshot? userData =
+            await _authService.getUserData(currentUser!.uid);
+        final dayData = {
+          'date': date.day.toString(),
+          'day': _getDayName(date.weekday),
+          'activities': [
+            {
+              'activity': _formatActivity(data),
+              'person': userData!['name'] ?? 'Unknown User',
+              'time': _formatTime(timestamp),
+            }
+          ],
+        };
+
+        if (grouped.containsKey(monthYear)) {
+          // Check if we already have this day
+          final existingDayIndex = grouped[monthYear]!.indexWhere(
+            (item) => item['date'] == dayData['date'],
+          );
+
+          if (existingDayIndex != -1) {
+            // Add activity to existing day
+            final existingDay = grouped[monthYear]![existingDayIndex];
+            final activities =
+                existingDay['activities'] as List<Map<String, dynamic>>;
+            final newActivity =
+                dayData['activities'] as List<Map<String, dynamic>>;
+            activities.add(newActivity[0]);
+          } else {
+            // Add new day
+            grouped[monthYear]!.add(dayData);
+          }
+        } else {
+          // Add new month with first day
+          grouped[monthYear] = [dayData];
+        }
+      }
+
+      setState(() {
+        _groupedActivities = grouped;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error fetching activity logs: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+    return months[month - 1];
+  }
+
+  String _getDayName(int weekday) {
+    const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    return days[weekday - 1];
+  }
+
+  String _formatActivity(Map<String, dynamic> data) {
+    final action = data['action'] as String? ?? '';
+    final thresholdType = data['thresholdType'] as String? ?? '';
+    final enabled = data['enabled'] as bool? ?? false;
+
+    switch (action.toLowerCase()) {
+      case 'edit':
+        return 'has edited the $thresholdType.';
+      case 'on':
+        return 'turned ON the CB.';
+      case 'off':
+        return 'turned OFF the CB.';
+      case 'update':
+        return 'has updated the $thresholdType.';
+      case 'create':
+        return 'has created a new $thresholdType.';
+      case 'delete':
+        return 'has deleted the $thresholdType.';
+      default:
+        if (enabled) {
+          return 'enabled the $thresholdType.';
+        } else {
+          return 'disabled the $thresholdType.';
+        }
+    }
+  }
+
+  String _formatTime(Timestamp timestamp) {
+    final date = timestamp.toDate();
+    final hour =
+        date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
+    final period = date.hour >= 12 ? 'PM' : 'AM';
+    return '${hour}:${date.minute.toString().padLeft(2, '0')} $period';
   }
 
   @override
@@ -88,106 +222,39 @@ class _HistoryState extends State<History> {
 
               // History
               Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: _firestore
-                      .collection('activityLogs')
-                      .where('userId',
-                          isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-                      .where('scbId', isEqualTo: scbId)
-                      .orderBy('timestamp', descending: true)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(
+                child: _isLoading
+                    ? Center(
                         child:
                             CircularProgressIndicator(color: Color(0xFF2ECC71)),
-                      );
-                    }
+                      )
+                    : _groupedActivities.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(20),
+                              child: Text(
+                                'No activity logs yet',
+                                style: TextStyle(fontSize: 15),
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: EdgeInsets.zero,
+                            itemCount: _groupedActivities.keys.length,
+                            itemBuilder: (context, index) {
+                              final monthYear =
+                                  _groupedActivities.keys.elementAt(index);
+                              final monthParts = monthYear.split(' ');
+                              final monthName = monthParts[0];
+                              final year = monthParts[1];
 
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(20),
-                          child: Text(
-                            'No activity logs yet',
-                            style: TextStyle(fontSize: 15),
+                              return HistoryTile(
+                                dateName: monthName,
+                                dateYear: year,
+                                scbId: scbId ?? '',
+                                eventData: _groupedActivities[monthYear]!,
+                              );
+                            },
                           ),
-                        ),
-                      );
-                    }
-
-                    final logs = snapshot.data!.docs;
-
-                    return ListView.builder(
-                      padding: EdgeInsets.zero,
-                      itemCount: logs.length,
-                      itemBuilder: (context, index) {
-                        final log = logs[index].data() as Map<String, dynamic>;
-                        final timestamp = log['timestamp'] as Timestamp?;
-
-                        return Container(
-                          margin:
-                              EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                          padding: EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 4,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    log['thresholdType'] ?? 'Unknown',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    _formatDateTime(timestamp),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Value: ${log['value']} | Action: ${log['action'].toString().toUpperCase()}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                              Text(
-                                'Status: ${log['enabled'] == true ? "Enabled" : "Disabled"}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: log['enabled'] == true
-                                      ? Colors.green
-                                      : Colors.red,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
               ),
 
               SizedBox(height: 60),
@@ -199,15 +266,6 @@ class _HistoryState extends State<History> {
         ],
       ),
     );
-  }
-
-  String _formatDateTime(Timestamp? timestamp) {
-    if (timestamp == null) return 'Unknown';
-    final date = timestamp.toDate();
-    final hour =
-        date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
-    final period = date.hour >= 12 ? 'PM' : 'AM';
-    return '${date.month}/${date.day}/${date.year} ${hour}:${date.minute.toString().padLeft(2, '0')} $period';
   }
 }
 
