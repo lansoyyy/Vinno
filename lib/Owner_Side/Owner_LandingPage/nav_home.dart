@@ -452,15 +452,15 @@ class _NavHomeState extends State<NavHome> {
                   Navigator.pushNamed(context, '/pin_location');
                 },
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.only(bottom: 20, right: 20),
                   child: Align(
-                    alignment: Alignment.bottomCenter,
+                    alignment: Alignment.bottomRight,
                     child: Container(
                       padding: const EdgeInsets.all(15),
                       child: Icon(Icons.location_on_rounded,
-                          color: Colors.white, size: 30),
+                          color: Colors.red, size: 30),
                       decoration: BoxDecoration(
-                        color: Colors.red,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(50),
                         boxShadow: [
                           BoxShadow(
