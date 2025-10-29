@@ -33,15 +33,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
             _isLoading = false;
           });
         } else {
-          // User is authenticated, check if email is verified
-          if (user.emailVerified) {
-            // Sign out the user if email is not verified
-            await _authService.signOut();
-            setState(() {
-              _isLoading = false;
-            });
-            return;
-          }
+          // // User is authenticated, check if email is verified
+          // if (!user.emailVerified) {
+          //   // Sign out the user if email is not verified
+          //   await _authService.signOut();
+          //   setState(() {
+          //     _isLoading = false;
+          //   });
+          //   return;
+          // }
 
           // User is authenticated and email is verified, check account type and navigate accordingly
           DocumentSnapshot? userData = await _authService.getUserData(user.uid);

@@ -52,6 +52,7 @@ dependencies:
   firebase_database:
   get_storage:
   vibration: ^1.8.4
+  url_launcher: ^6.2.2
 
 dev_dependencies:
   flutter_test:

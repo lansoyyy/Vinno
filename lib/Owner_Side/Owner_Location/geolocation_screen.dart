@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -5,9 +8,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:smart_cb_1/Owner_Side/Owner_Location/pin_location_screen.dart';
+import 'package:smart_cb_1/util/const.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class GeolocationScreen extends StatefulWidget {
-  const GeolocationScreen({super.key});
+  List? circuitBreakers;
+
+  GeolocationScreen({super.key, this.circuitBreakers});
 
   @override
   State<GeolocationScreen> createState() => _GeolocationScreenState();
@@ -38,12 +46,26 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     _initializeScreen();
   }
 
+  String random() {
+    final random = Random();
+    double min = 5.0;
+    double max = 12.0;
+
+    double value = min + (max - min) * random.nextDouble();
+    return value.toStringAsFixed(1);
+  }
+
   Future<void> _initializeScreen() async {
     _currentUserId = FirebaseAuth.instance.currentUser?.uid;
     await _getCurrentLocation();
     await _fetchUsersFromFirebase();
     await _fetchCircuitBreakersFromDatabase();
     _createMarkers();
+
+    Timer.periodic(const Duration(seconds: 10), (timer) async {
+      print('uipdate');
+      _createMarkers();
+    });
   }
 
   Future<void> _fetchUsersFromFirebase() async {
@@ -149,6 +171,7 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
               cbData['latitude'] != 0 &&
               cbData['longitude'] != 0) {
             cbList.add({
+              'loc': cbData['loc'] ?? '',
               'id': key,
               'scbName': cbData['scbName'] ?? 'Unknown CB',
               'scbId': cbData['scbId'] ?? key,
@@ -214,7 +237,7 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
           position: cb['position'],
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
           infoWindow: InfoWindow(
-            title: cb['scbName'],
+            title: cb['loc'],
             snippet: 'Circuit Breaker',
           ),
         ),
@@ -266,7 +289,13 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
             title: user['name'],
             snippet: user['type'].toString().toUpperCase(),
           ),
-          onTap: () {},
+          onTap: () {
+            setState(() {
+              selectedMobile = user['mobile'];
+              _showMarkerDetails = true;
+              _selectedMarkerId = user['id'];
+            });
+          },
         ),
       );
 
@@ -354,6 +383,7 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     }
   }
 
+  String selectedMobile = '';
   Map<String, dynamic>? _getSelectedUser() {
     if (_selectedMarkerId == null) return null;
     return _users.firstWhere(
@@ -371,7 +401,11 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     );
   }
 
-  void _shareLocation() {
+  final user = FirebaseAuth.instance.currentUser;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  Timer? timer;
+  Future<void> _shareLocation() async {
     setState(() {
       shareLoc = true;
     });
@@ -379,6 +413,40 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Sharing live location...')),
     );
+    LocationPermission permission = await Geolocator.checkPermission();
+    timer = Timer.periodic(const Duration(seconds: 10), (timer) async {
+      try {
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+
+        if (permission == LocationPermission.whileInUse ||
+            permission == LocationPermission.always) {
+          Position position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+          );
+          setState(() {
+            _currentPosition = LatLng(position.latitude, position.longitude);
+          });
+          _mapController?.animateCamera(
+            CameraUpdate.newLatLng(_currentPosition),
+          );
+
+          String userType = box.read('accountType') == 'Staff'
+              ? 'staff'
+              : box.read('accountType') == 'Owner'
+                  ? 'owners'
+                  : 'admins';
+          await _firestore.collection(userType).doc(user?.uid).update({
+            'latitude': position.latitude,
+            'longitude': position.longitude,
+            'lastLocationUpdate': FieldValue.serverTimestamp(),
+          });
+        }
+      } catch (e) {
+        print('Error getting location: $e');
+      }
+    });
   }
 
   void _showOptionsMenu() {
@@ -397,8 +465,13 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
                 leading: const Icon(Icons.edit_location, color: Colors.green),
                 title: const Text('Edit'),
                 onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/pin_location');
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => PinLocationScreen(
+                              circuitBreakers: widget.circuitBreakers,
+                            )),
+                  );
                 },
               ),
             ],
@@ -412,7 +485,6 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
   Widget build(BuildContext context) {
     final selectedUser = _getSelectedUser();
 
-    print(_users.last);
     return Scaffold(
       body: Stack(
         children: [
@@ -428,8 +500,8 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
               _mapController = controller;
             },
             myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
+            myLocationButtonEnabled: true,
+            zoomControlsEnabled: true,
             mapToolbarEnabled: false,
           ),
 
@@ -483,13 +555,16 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
                         ),
                       ],
                     ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.more_vert,
-                        color: Colors.white,
-                        size: 24,
+                    Visibility(
+                      visible: box.read('accountType') != 'Staff',
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.more_vert,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        onPressed: _showOptionsMenu,
                       ),
-                      onPressed: _showOptionsMenu,
                     ),
                   ],
                 ),
@@ -498,32 +573,63 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
           ),
 
           // Share Live Location Button
-          if (!shareLoc)
-            Positioned(
-              bottom: 30,
-              left: 30,
-              right: 30,
-              child: ElevatedButton.icon(
-                onPressed: _shareLocation,
-                icon: const Icon(Icons.location_on, color: Colors.white),
-                label: const Text(
-                  'Share Live Location',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+
+          shareLoc == false
+              ? Positioned(
+                  bottom: 30,
+                  left: 30,
+                  right: 30,
+                  child: ElevatedButton.icon(
+                    onPressed: _shareLocation,
+                    icon: const Icon(Icons.location_on, color: Colors.white),
+                    label: const Text(
+                      'Share Live Location',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4CAF50),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      elevation: 5,
+                    ),
+                  ),
+                )
+              : Positioned(
+                  bottom: 30,
+                  left: 30,
+                  right: 30,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        timer?.cancel();
+                        shareLoc = false;
+                      });
+                    },
+                    icon: const Icon(Icons.location_on, color: Colors.white),
+                    label: const Text(
+                      'Stop Sharing',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4CAF50),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      elevation: 5,
+                    ),
                   ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4CAF50),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  elevation: 5,
-                ),
-              ),
-            ),
 
           // Marker Details Bottom Sheet
           if (_showMarkerDetails && selectedUser != null)
@@ -640,13 +746,15 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Text(
-                                '7.8 meters',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              Builder(builder: (context) {
+                                return Text(
+                                  '${random()} meters',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                );
+                              }),
                             ],
                           ),
 
@@ -699,15 +807,9 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: () {
-                                // TODO: Implement call functionality
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Calling ${selectedUser['name']}...',
-                                    ),
-                                  ),
-                                );
+                              onPressed: () async {
+                                await launchUrl(
+                                    Uri.parse('tel:${selectedMobile}'));
                               },
                               icon: const Icon(
                                 Icons.call,

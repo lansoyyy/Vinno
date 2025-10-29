@@ -140,6 +140,10 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
         isLoading = false;
       });
     }
+
+    setState(() {
+      isLoading = false;
+    });
   }
 
   // Switch Changed - Update Firebase
@@ -1029,7 +1033,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                 ),
               if (!isEditMode)
                 // NAVIGATION ---------------------------------------------------------------------------------------------
-                NavHome(),
+                NavHome(circuitBreakers: bracketList),
             ],
           ),
         ),

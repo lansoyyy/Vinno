@@ -1,7 +1,9 @@
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:smart_cb_1/Owner_Side/Owner_Location/geolocation_screen.dart';
 import 'dart:convert';
 import 'package:uuid/uuid.dart';
 import 'package:smart_cb_1/util/const.dart';
@@ -9,7 +11,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PinLocationScreen extends StatefulWidget {
-  const PinLocationScreen({super.key});
+  List? circuitBreakers;
+
+  PinLocationScreen({super.key, this.circuitBreakers});
 
   @override
   State<PinLocationScreen> createState() => _PinLocationScreenState();
@@ -65,7 +69,7 @@ class _PinLocationScreenState extends State<PinLocationScreen> {
     }
   }
 
-  void _updateMarker(LatLng position) {
+  Future<void> _updateMarker(LatLng position) async {
     setState(() {
       _selectedPosition = position;
       _markers = {
@@ -90,8 +94,19 @@ class _PinLocationScreenState extends State<PinLocationScreen> {
         ),
       };
     });
+    for (int i = 0; i < widget.circuitBreakers!.length; i++) {
+      await _dbRef
+          .child('circuitBreakers')
+          .child(widget.circuitBreakers![i]['scbId'])
+          .update({
+        'loc': _locationNameController.text,
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+      });
+    }
   }
 
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   void _onMapTapped(LatLng position) {
     _updateMarker(position);
   }
@@ -145,24 +160,29 @@ class _PinLocationScreenState extends State<PinLocationScreen> {
           collectionName = 'owners';
           break;
       }
-
-      // Update latitude and longitude in the appropriate collection
-      await FirebaseFirestore.instance
-          .collection(collectionName)
-          .doc(currentUser.uid)
-          .update({
-        'latitude': _selectedPosition.latitude,
-        'longitude': _selectedPosition.longitude,
-        'locationName': locationName,
-        'locationUpdatedAt': FieldValue.serverTimestamp(),
-      });
+      box.write('hasPinned', true);
+      for (int i = 0; i < widget.circuitBreakers!.length; i++) {
+        await _dbRef
+            .child('circuitBreakers')
+            .child(widget.circuitBreakers![i]['scbId'])
+            .update({
+          'loc': locationName,
+          'latitude': _selectedPosition.latitude,
+          'longitude': _selectedPosition.longitude,
+        });
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Location "$locationName" saved successfully')),
       );
 
-      // Navigate to geolocation screen
-      Navigator.pushReplacementNamed(context, '/geolocation');
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (context) => GeolocationScreen(
+                  circuitBreakers: widget.circuitBreakers,
+                )),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving location: $e')),

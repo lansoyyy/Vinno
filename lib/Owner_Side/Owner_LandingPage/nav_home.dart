@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:smart_cb_1/Owner_Side/Owner_Location/geolocation_screen.dart';
+import 'package:smart_cb_1/Owner_Side/Owner_Location/pin_location_screen.dart';
 import 'package:smart_cb_1/services/threshold_monitor_service.dart';
 import 'package:smart_cb_1/util/const.dart';
 import 'package:vibration/vibration.dart';
@@ -8,7 +10,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NavHome extends StatefulWidget {
-  const NavHome({super.key});
+  List? circuitBreakers;
+
+  NavHome({super.key, this.circuitBreakers});
 
   @override
   State<NavHome> createState() => _NavHomeState();
@@ -357,7 +361,35 @@ class _NavHomeState extends State<NavHome> {
                           ),
                         ),
                         onPressed: () {
-                          Navigator.pushNamed(context, '/pin_location');
+                          if (box.read('hasPinned') == true) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => GeolocationScreen(
+                                        circuitBreakers: widget.circuitBreakers,
+                                      )),
+                            );
+                          } else {
+                            if (box.read('accountType') == 'Staff') {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => GeolocationScreen(
+                                          circuitBreakers:
+                                              widget.circuitBreakers,
+                                        )),
+                              );
+                            } else {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => PinLocationScreen(
+                                          circuitBreakers:
+                                              widget.circuitBreakers,
+                                        )),
+                              );
+                            }
+                          }
                         },
                       ),
 
