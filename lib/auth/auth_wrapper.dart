@@ -5,6 +5,7 @@ import 'package:smart_cb_1/services/firebase_auth_service.dart';
 import 'package:smart_cb_1/Login_ForgotPass/Login/login.dart';
 import 'package:smart_cb_1/IntroAndRegistration/initial_setup.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Navigation/navigation_page.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
@@ -53,29 +54,31 @@ class _AuthWrapperState extends State<AuthWrapper> {
               _isLoading = false;
             });
 
-            // Navigate based on account type
-            if (data['isActive']) {
-              if (accountType == 'Owner') {
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/cblist',
-                  (route) => false,
-                );
-              } else if (accountType == 'Admin') {
-                // Navigate to admin page when implemented
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/cblist', // Temporary route, update when admin page is ready
-                  (route) => false,
-                );
-              } else if (accountType == 'Staff') {
-                // Navigate to staff page when implemented
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/cblist', // Temporary route, update when staff page is ready
-                  (route) => false,
-                );
+            if (box.read('loggedIn') == true) {
+              // Navigate based on account type
+              if (data['isActive']) {
+                if (accountType == 'Owner') {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/cblist',
+                    (route) => false,
+                  );
+                } else if (accountType == 'Admin') {
+                  // Navigate to admin page when implemented
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/cblist', // Temporary route, update when admin page is ready
+                    (route) => false,
+                  );
+                } else if (accountType == 'Staff') {
+                  // Navigate to staff page when implemented
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/cblist', // Temporary route, update when staff page is ready
+                    (route) => false,
+                  );
+                }
+              } else {
+                _showMessage("User is not active.");
+                await _authService.signOut();
               }
-            } else {
-              _showMessage("User is not active.");
-              await _authService.signOut();
             }
           } else {
             _showMessage("User not found.");

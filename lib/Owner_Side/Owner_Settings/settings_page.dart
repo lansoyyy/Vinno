@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:smart_cb_1/services/firebase_auth_service.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -50,6 +51,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ElevatedButton(
               onPressed: () async {
                 Navigator.of(context).pop();
+                box.write('loggedIn', false);
                 await _performLogout();
               },
               style: ElevatedButton.styleFrom(

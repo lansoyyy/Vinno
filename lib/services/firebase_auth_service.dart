@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -83,6 +84,8 @@ class FirebaseAuthService {
         // await _auth.signOut(); // Sign out the user
         return 'Please verify your email before signing in. Check your inbox for the verification email.';
       }
+
+      box.write('loggedIn', true);
 
       return null; // Success, return null for no error
     } on FirebaseAuthException catch (e) {
