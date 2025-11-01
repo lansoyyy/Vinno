@@ -88,6 +88,7 @@ class _SearchConnectionState extends State<SearchConnection> {
               'longitude': cbData!['longitude'],
               'ownerId': data['createdBy'],
               'createdAt': ServerValue.timestamp,
+              'servoStatus': '',
             };
           });
         }
@@ -109,6 +110,7 @@ class _SearchConnectionState extends State<SearchConnection> {
             'longitude': cbData!['longitude'],
             'ownerId': user.uid,
             'createdAt': ServerValue.timestamp,
+            'servoStatus': '',
           };
         });
       }
