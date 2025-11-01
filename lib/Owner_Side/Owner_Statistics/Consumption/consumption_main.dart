@@ -90,14 +90,14 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
     try {
       Map<String, dynamic> data;
       if (breakerName == 'All Breakers') {
-        data = await _statisticsService.getAggregatedData(period);
+        data = await _statisticsService.getAggregatedData(period, metric: 'energy');
       } else {
         final breaker = circuitBreakers.firstWhere(
           (b) => b['scbName'] == breakerName,
           orElse: () => {'scbId': ''},
         );
         data = await _statisticsService.getHistoricalData(
-            breaker['scbId'], period);
+            breaker['scbId'], period, metric: 'energy');
       }
 
       final processedData = <String, double>{};

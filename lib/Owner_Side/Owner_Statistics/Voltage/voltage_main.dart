@@ -148,35 +148,12 @@ class _VoltageMainState extends State<VoltageMain> {
         orElse: () => {'scbId': ''},
       );
 
-      // If no real-time data exists, use current readings from circuit breaker
-      final DatabaseReference dbRef = FirebaseDatabase.instance.ref();
-      final breakerSnapshot =
-          await dbRef.child('circuitBreakers').child(breaker['scbId']).get();
-
-      if (breakerSnapshot.exists) {
-        final breakerData =
-            Map<String, dynamic>.from(breakerSnapshot.value as Map);
-        final double currentValue = (breakerData['voltage'] ?? 0).toDouble();
-
-        // Generate some realistic variation around the current value
-        final random = Random();
-        final List<double> data = List.generate(20, (index) {
-          // Add variation of ±5% to the current value
-          double variation = 0.95 + random.nextDouble() * 0.1;
-          return currentValue * variation;
-        });
-
-        setState(() {
-          realTimeValues = data;
-        });
-      } else {
-        // Fallback to service method if circuit breaker data is not available
-        final data = await _statisticsService.getRealTimeData(
-            breaker['scbId'], 'voltage');
-        setState(() {
-          realTimeValues = data;
-        });
-      }
+      // Use the service method which now reads from the new data structure
+      final data =
+          await _statisticsService.getRealTimeData(breaker['scbId'], 'voltage');
+      setState(() {
+        realTimeValues = data;
+      });
     } catch (e) {
       print('Error fetching real-time data: $e');
     }
@@ -325,28 +302,7 @@ class _VoltageMainState extends State<VoltageMain> {
                                     context,
                                     realTimeValues.isNotEmpty
                                         ? realTimeValues
-                                        : [
-                                            220.0,
-                                            225.0,
-                                            230.0,
-                                            235.0,
-                                            240.0,
-                                            238.0,
-                                            232.0,
-                                            228.0,
-                                            225.0,
-                                            223.0,
-                                            220.0,
-                                            218.0,
-                                            222.0,
-                                            226.0,
-                                            230.0,
-                                            233.0,
-                                            231.0,
-                                            228.0,
-                                            225.0,
-                                            222.0
-                                          ]);
+                                        : []);
                               },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(

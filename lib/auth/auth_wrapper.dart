@@ -126,6 +126,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
 
     // If not loading and user is not authenticated, show initial setup
-    return const LoginPage();
+    return const InitialSetup();
   }
 }

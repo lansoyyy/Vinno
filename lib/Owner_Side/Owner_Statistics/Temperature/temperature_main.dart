@@ -6,8 +6,6 @@ import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Temperature/temperature_w
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Temperature/temperature_year.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/statistics_menu.dart';
 import 'package:smart_cb_1/services/statistics_service.dart';
-import 'package:firebase_database/firebase_database.dart';
-import 'dart:math';
 
 class TemperatureMain extends StatefulWidget {
   const TemperatureMain({super.key});
@@ -148,36 +146,12 @@ class _TemperatureMainState extends State<TemperatureMain> {
         orElse: () => {'scbId': ''},
       );
 
-      // If no real-time data exists, use current readings from circuit breaker
-      final DatabaseReference dbRef = FirebaseDatabase.instance.ref();
-      final breakerSnapshot =
-          await dbRef.child('circuitBreakers').child(breaker['scbId']).get();
-
-      if (breakerSnapshot.exists) {
-        final breakerData =
-            Map<String, dynamic>.from(breakerSnapshot.value as Map);
-        final double currentValue =
-            (breakerData['temperature'] ?? 0).toDouble();
-
-        // Generate some realistic variation around the current value
-        final random = Random();
-        final List<double> data = List.generate(20, (index) {
-          // Add variation of ±5% to the current value
-          double variation = 0.95 + random.nextDouble() * 0.1;
-          return currentValue * variation;
-        });
-
-        setState(() {
-          realTimeValues = data;
-        });
-      } else {
-        // Fallback to service method if circuit breaker data is not available
-        final data = await _statisticsService.getRealTimeData(
-            breaker['scbId'], 'temperature');
-        setState(() {
-          realTimeValues = data;
-        });
-      }
+      // Use the service method which now reads from the temperature collection
+      final data = await _statisticsService.getRealTimeData(
+          breaker['scbId'], 'temperature');
+      setState(() {
+        realTimeValues = data;
+      });
     } catch (e) {
       print('Error fetching real-time data: $e');
     }

@@ -46,15 +46,75 @@ class StatisticsService {
       String breakerId, String period,
       {String metric = 'energy'}) async {
     try {
+      // First try to get data from new structure (voltage/CB-LIVING-002/)
+      final snapshot = await _dbRef.child(metric).child(breakerId).get();
+
+      if (snapshot.exists) {
+        final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
+        final labels = _getPeriodLabels(period);
+        Map<String, dynamic> result = {};
+
+        // Convert data entries to list with timestamps
+        List<MapEntry<dynamic, dynamic>> dataEntries = data.entries.toList();
+        
+        // Sort by timestamp
+        dataEntries.sort((a, b) {
+          final aTimestamp = (a.value is Map && a.value.containsKey('timestamp')) 
+              ? a.value['timestamp'] as int 
+              : 0;
+          final bTimestamp = (b.value is Map && b.value.containsKey('timestamp')) 
+              ? b.value['timestamp'] as int 
+              : 0;
+          return aTimestamp.compareTo(bTimestamp);
+        });
+
+        // Group data by time periods based on timestamps
+        final now = DateTime.now();
+        final Map<String, List<double>> groupedData = {};
+        
+        for (String label in labels) {
+          groupedData[label] = [];
+        }
+
+        for (var entry in dataEntries) {
+          if (entry.value is Map && entry.value.containsKey(metric) && entry.value.containsKey('timestamp')) {
+            final timestamp = entry.value['timestamp'] as int;
+            final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+            final value = (entry.value[metric] as num).toDouble();
+            
+            // Determine which period this data point belongs to
+            String? labelForData = _getLabelForTimestamp(dateTime, period, labels, now);
+            if (labelForData != null) {
+              if (groupedData.containsKey(labelForData)) {
+                groupedData[labelForData]!.add(value);
+              }
+            }
+          }
+        }
+
+        // Calculate average for each period
+        for (String label in labels) {
+          if (groupedData[label]!.isNotEmpty) {
+            double sum = groupedData[label]!.reduce((a, b) => a + b);
+            result[label] = sum / groupedData[label]!.length;
+          } else {
+            // If no data for this period, use 0 or interpolate
+            result[label] = 0.0;
+          }
+        }
+
+        return result;
+      }
+
       // First try to get data from historicalData node (for future implementation)
-      final snapshot = await _dbRef
+      final historicalSnapshot = await _dbRef
           .child('historicalData')
           .child(breakerId)
           .child(period)
           .get();
 
-      if (snapshot.exists) {
-        return Map<String, dynamic>.from(snapshot.value as Map);
+      if (historicalSnapshot.exists) {
+        return Map<String, dynamic>.from(historicalSnapshot.value as Map);
       }
 
       // If no historical data exists, use current readings from circuit breaker
@@ -121,9 +181,9 @@ class StatisticsService {
     }
   }
 
-  // Get current readings for all circuit breakers
+  // Get current readings for all circuit breakers from metric collections
   Stream<Map<String, double>> getCurrentReadings() {
-    return getCircuitBreakers().map((breakers) {
+    return getCircuitBreakers().asyncMap((breakers) async {
       double totalVoltage = 0;
       double totalCurrent = 0;
       double totalPower = 0;
@@ -131,11 +191,67 @@ class StatisticsService {
       double totalEnergy = 0;
 
       for (var breaker in breakers) {
-        totalVoltage += breaker['voltage'] as double;
-        totalCurrent += breaker['current'] as double;
-        totalPower += breaker['power'] as double;
-        totalTemperature += breaker['temperature'] as double;
-        totalEnergy += breaker['energy'] as double;
+        String breakerId = breaker['scbId'];
+        
+        // Read from voltage collection
+        final voltageSnapshot = await _dbRef.child('voltage').child(breakerId).limitToLast(1).get();
+        if (voltageSnapshot.exists) {
+          final data = Map<dynamic, dynamic>.from(voltageSnapshot.value as Map);
+          final latestEntry = data.values.first;
+          if (latestEntry is Map && latestEntry.containsKey('voltage')) {
+            totalVoltage += (latestEntry['voltage'] as num).toDouble();
+          }
+        } else {
+          totalVoltage += breaker['voltage'] as double;
+        }
+
+        // Read from current collection
+        final currentSnapshot = await _dbRef.child('current').child(breakerId).limitToLast(1).get();
+        if (currentSnapshot.exists) {
+          final data = Map<dynamic, dynamic>.from(currentSnapshot.value as Map);
+          final latestEntry = data.values.first;
+          if (latestEntry is Map && latestEntry.containsKey('current')) {
+            totalCurrent += (latestEntry['current'] as num).toDouble();
+          }
+        } else {
+          totalCurrent += breaker['current'] as double;
+        }
+
+        // Read from power collection
+        final powerSnapshot = await _dbRef.child('power').child(breakerId).limitToLast(1).get();
+        if (powerSnapshot.exists) {
+          final data = Map<dynamic, dynamic>.from(powerSnapshot.value as Map);
+          final latestEntry = data.values.first;
+          if (latestEntry is Map && latestEntry.containsKey('power')) {
+            totalPower += (latestEntry['power'] as num).toDouble();
+          }
+        } else {
+          totalPower += breaker['power'] as double;
+        }
+
+        // Read from temperature collection
+        final temperatureSnapshot = await _dbRef.child('temperature').child(breakerId).limitToLast(1).get();
+        if (temperatureSnapshot.exists) {
+          final data = Map<dynamic, dynamic>.from(temperatureSnapshot.value as Map);
+          final latestEntry = data.values.first;
+          if (latestEntry is Map && latestEntry.containsKey('temperature')) {
+            totalTemperature += (latestEntry['temperature'] as num).toDouble();
+          }
+        } else {
+          totalTemperature += breaker['temperature'] as double;
+        }
+
+        // Read from energy collection
+        final energySnapshot = await _dbRef.child('energy').child(breakerId).limitToLast(1).get();
+        if (energySnapshot.exists) {
+          final data = Map<dynamic, dynamic>.from(energySnapshot.value as Map);
+          final latestEntry = data.values.first;
+          if (latestEntry is Map && latestEntry.containsKey('energy')) {
+            totalEnergy += (latestEntry['energy'] as num).toDouble();
+          }
+        } else {
+          totalEnergy += breaker['energy'] as double;
+        }
       }
 
       return {
@@ -171,7 +287,7 @@ class StatisticsService {
     }
   }
 
-  // Get highest readings
+  // Get highest readings from metric collections
   Future<Map<String, double>> getHighestReadings() async {
     try {
       final breakers = await getCircuitBreakers().first;
@@ -182,11 +298,77 @@ class StatisticsService {
       double maxEnergy = 0;
 
       for (var breaker in breakers) {
-        maxVoltage = max(maxVoltage, breaker['voltage'] as double);
-        maxCurrent = max(maxCurrent, breaker['current'] as double);
-        maxPower = max(maxPower, breaker['power'] as double);
-        maxTemperature = max(maxTemperature, breaker['temperature'] as double);
-        maxEnergy = max(maxEnergy, breaker['energy'] as double);
+        String breakerId = breaker['scbId'];
+        
+        // Read from voltage collection
+        final voltageSnapshot = await _dbRef.child('voltage').child(breakerId).get();
+        if (voltageSnapshot.exists) {
+          final data = Map<dynamic, dynamic>.from(voltageSnapshot.value as Map);
+          data.forEach((key, value) {
+            if (value is Map && value.containsKey('voltage')) {
+              double voltage = (value['voltage'] as num).toDouble();
+              maxVoltage = max(maxVoltage, voltage);
+            }
+          });
+        } else {
+          maxVoltage = max(maxVoltage, breaker['voltage'] as double);
+        }
+
+        // Read from current collection
+        final currentSnapshot = await _dbRef.child('current').child(breakerId).get();
+        if (currentSnapshot.exists) {
+          final data = Map<dynamic, dynamic>.from(currentSnapshot.value as Map);
+          data.forEach((key, value) {
+            if (value is Map && value.containsKey('current')) {
+              double current = (value['current'] as num).toDouble();
+              maxCurrent = max(maxCurrent, current);
+            }
+          });
+        } else {
+          maxCurrent = max(maxCurrent, breaker['current'] as double);
+        }
+
+        // Read from power collection
+        final powerSnapshot = await _dbRef.child('power').child(breakerId).get();
+        if (powerSnapshot.exists) {
+          final data = Map<dynamic, dynamic>.from(powerSnapshot.value as Map);
+          data.forEach((key, value) {
+            if (value is Map && value.containsKey('power')) {
+              double power = (value['power'] as num).toDouble();
+              maxPower = max(maxPower, power);
+            }
+          });
+        } else {
+          maxPower = max(maxPower, breaker['power'] as double);
+        }
+
+        // Read from temperature collection
+        final temperatureSnapshot = await _dbRef.child('temperature').child(breakerId).get();
+        if (temperatureSnapshot.exists) {
+          final data = Map<dynamic, dynamic>.from(temperatureSnapshot.value as Map);
+          data.forEach((key, value) {
+            if (value is Map && value.containsKey('temperature')) {
+              double temperature = (value['temperature'] as num).toDouble();
+              maxTemperature = max(maxTemperature, temperature);
+            }
+          });
+        } else {
+          maxTemperature = max(maxTemperature, breaker['temperature'] as double);
+        }
+
+        // Read from energy collection
+        final energySnapshot = await _dbRef.child('energy').child(breakerId).get();
+        if (energySnapshot.exists) {
+          final data = Map<dynamic, dynamic>.from(energySnapshot.value as Map);
+          data.forEach((key, value) {
+            if (value is Map && value.containsKey('energy')) {
+              double energy = (value['energy'] as num).toDouble();
+              maxEnergy = max(maxEnergy, energy);
+            }
+          });
+        } else {
+          maxEnergy = max(maxEnergy, breaker['energy'] as double);
+        }
       }
 
       return {
@@ -212,17 +394,41 @@ class StatisticsService {
   Future<List<double>> getRealTimeData(
       String breakerId, String dataType) async {
     try {
-      final snapshot = await _dbRef
+      // First try to get data from the new structure (voltage/CB-LIVING-002/randomId/)
+      final snapshot =
+          await _dbRef.child(dataType).child(breakerId).limitToLast(20).get();
+
+      if (snapshot.exists) {
+        final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
+        List<MapEntry> entries = data.entries.toList();
+
+        // Sort by timestamp
+        entries.sort((a, b) {
+          final aTimestamp = a.value['timestamp'] as int? ?? 0;
+          final bTimestamp = b.value['timestamp'] as int? ?? 0;
+          return aTimestamp.compareTo(bTimestamp);
+        });
+
+        // Extract the values in chronological order
+        return entries.map((entry) {
+          final value = entry.value[dataType] as num? ?? 0;
+          return value.toDouble();
+        }).toList();
+      }
+
+      // Fallback to old structure
+      final oldSnapshot = await _dbRef
           .child('realTimeData')
           .child(breakerId)
           .child(dataType)
           .limitToLast(20)
           .get();
 
-      if (snapshot.exists) {
-        final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
+      if (oldSnapshot.exists) {
+        final data = Map<dynamic, dynamic>.from(oldSnapshot.value as Map);
         return data.values.map((e) => (e as num).toDouble()).toList();
       }
+
       return _generateMockRealTimeData();
     } catch (e) {
       print('Error fetching real-time data: $e');
@@ -256,6 +462,51 @@ class StatisticsService {
         ];
       default:
         return [];
+    }
+  }
+
+  // Helper method to determine which label a timestamp belongs to
+  String? _getLabelForTimestamp(DateTime dateTime, String period, List<String> labels, DateTime now) {
+    switch (period) {
+      case 'day':
+        // Group by 4-hour intervals
+        final hour = dateTime.hour;
+        if (hour >= 0 && hour < 4) return '00:00';
+        if (hour >= 4 && hour < 8) return '04:00';
+        if (hour >= 8 && hour < 12) return '08:00';
+        if (hour >= 12 && hour < 16) return '12:00';
+        if (hour >= 16 && hour < 20) return '16:00';
+        if (hour >= 20 && hour < 24) return '20:00';
+        return '24:00';
+        
+      case 'week':
+        // Group by day of week
+        final weekday = dateTime.weekday; // 1 = Monday, 7 = Sunday
+        const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        if (weekday >= 1 && weekday <= 7) {
+          return weekDays[weekday - 1];
+        }
+        return null;
+        
+      case 'month':
+        // Group by week of month
+        final dayOfMonth = dateTime.day;
+        if (dayOfMonth >= 1 && dayOfMonth <= 7) return 'Week 1';
+        if (dayOfMonth >= 8 && dayOfMonth <= 14) return 'Week 2';
+        if (dayOfMonth >= 15 && dayOfMonth <= 21) return 'Week 3';
+        if (dayOfMonth >= 22) return 'Week 4';
+        return null;
+        
+      case 'year':
+        // Group by month
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        if (dateTime.month >= 1 && dateTime.month <= 12) {
+          return months[dateTime.month - 1];
+        }
+        return null;
+        
+      default:
+        return null;
     }
   }
 

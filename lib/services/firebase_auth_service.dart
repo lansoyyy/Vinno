@@ -80,7 +80,7 @@ class FirebaseAuthService {
 
       // Check if email is verified
       if (!userCredential.user!.emailVerified) {
-        await _auth.signOut(); // Sign out the user
+        // await _auth.signOut(); // Sign out the user
         return 'Please verify your email before signing in. Check your inbox for the verification email.';
       }
 
