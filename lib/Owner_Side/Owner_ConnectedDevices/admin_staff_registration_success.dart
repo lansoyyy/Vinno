@@ -74,16 +74,13 @@ class _AdminStaffRegistrationSuccessState
 
                 const SizedBox(height: 80),
 
-                // Go to Login Button
+                // Back to Managers Button
                 ElevatedButton(
                   onPressed: () async {
-                    // Sign out any current user after successful registration
-                    await _authService.signOut();
-
-                    // Navigate to login page
+                    // Navigate back to Managers page (connected devices)
                     Navigator.pushNamedAndRemoveUntil(
                       context,
-                      '/',
+                      '/connectedDevices',
                       (route) => false,
                     );
                   },
@@ -100,7 +97,7 @@ class _AdminStaffRegistrationSuccessState
                     elevation: 3,
                   ),
                   child: const Text(
-                    "Go to Login",
+                    "Back to Managers",
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
