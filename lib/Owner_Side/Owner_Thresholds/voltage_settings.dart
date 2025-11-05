@@ -156,48 +156,46 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
     return action[0].toUpperCase() + action.substring(1).toLowerCase();
   }
 
-  // Log all threshold changes to Firestore
+  // Log all threshold changes to Firestore as a summary
   Future<void> _logThresholdChanges() async {
     if (cbData == null) return;
 
     final scbId = cbData!['scbId'];
     final scbName = cbData!['scbName'];
 
-    // Log each threshold change
-    await ThresholdMonitorService.logThresholdChange(
-      scbId: scbId,
-      scbName: scbName,
-      thresholdType: 'Overvoltage',
-      value: overvoltageValue,
-      action: overvoltageAction,
-      enabled: overvoltageAction != 'Off',
-    );
+    // Create a list of all threshold changes
+    final List<Map<String, dynamic>> thresholdChanges = [
+      {
+        'thresholdType': 'Overvoltage',
+        'value': overvoltageValue,
+        'action': overvoltageAction,
+        'enabled': overvoltageAction != 'Off',
+      },
+      {
+        'thresholdType': 'Overcurrent',
+        'value': overcurrentValue,
+        'action': overcurrentAction,
+        'enabled': overcurrentAction != 'Off',
+      },
+      {
+        'thresholdType': 'Overpower',
+        'value': overpowerValue,
+        'action': overpowerAction,
+        'enabled': overpowerAction != 'Off',
+      },
+      {
+        'thresholdType': 'Temperature',
+        'value': temperatureValue,
+        'action': temperatureAction,
+        'enabled': temperatureAction != 'Off',
+      },
+    ];
 
-    await ThresholdMonitorService.logThresholdChange(
+    // Log as a single summary entry
+    await ThresholdMonitorService.logThresholdSettingsSummary(
       scbId: scbId,
       scbName: scbName,
-      thresholdType: 'Overcurrent',
-      value: overcurrentValue,
-      action: overcurrentAction,
-      enabled: overcurrentAction != 'Off',
-    );
-
-    await ThresholdMonitorService.logThresholdChange(
-      scbId: scbId,
-      scbName: scbName,
-      thresholdType: 'Overpower',
-      value: overpowerValue,
-      action: overpowerAction,
-      enabled: overpowerAction != 'Off',
-    );
-
-    await ThresholdMonitorService.logThresholdChange(
-      scbId: scbId,
-      scbName: scbName,
-      thresholdType: 'Temperature',
-      value: temperatureValue,
-      action: temperatureAction,
-      enabled: temperatureAction != 'Off',
+      thresholdChanges: thresholdChanges,
     );
   }
 

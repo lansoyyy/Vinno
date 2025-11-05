@@ -37,34 +37,76 @@ class _HistoryState extends State<History> {
     if (scbId == null) return;
 
     try {
-      final snapshot = await _firestore
-          .collection('activityLogs')
-          .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-          .where('scbId', isEqualTo: scbId)
-          .orderBy('timestamp', descending: true)
-          .get();
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
 
+      // Get user role to determine visibility
+      DocumentSnapshot? userData = await _authService.getUserData(user.uid);
+      final accountType = userData?.get('accountType') ?? 'Owner';
+      final currentUserId = user.uid;
+
+      // Determine query based on user role
+      Query query = _firestore
+          .collection('activityLogs')
+          .where('scbId', isEqualTo: scbId)
+          .orderBy('timestamp', descending: true);
+
+      if (accountType == 'Staff') {
+        // Staff can only see their own activities
+        query = query.where('userId', isEqualTo: currentUserId);
+      }
+      // Owners and Admins can see all activities for this circuit breaker
+
+      final snapshot = await query.get();
       final Map<String, List<Map<String, dynamic>>> grouped = {};
 
       for (var doc in snapshot.docs) {
-        final data = doc.data();
+        final data = doc.data() as Map<String, dynamic>?;
+        if (data == null) continue;
+
         final timestamp = data['timestamp'] as Timestamp?;
         if (timestamp == null) continue;
-        User? currentUser = _authService.currentUser;
+
         final date = timestamp.toDate();
         final monthYear = '${_getMonthName(date.month)} ${date.year}';
-        DocumentSnapshot? userData =
-            await _authService.getUserData(currentUser!.uid);
+
+        // Get user name for this activity
+        final activityUserId = data['userId'] as String?;
+        String userName = 'Unknown User';
+
+        if (activityUserId != null) {
+          if (activityUserId == currentUserId) {
+            // Current user
+            userName = userData?.get('name') ?? 'Unknown User';
+          } else {
+            // Another user - fetch their data
+            try {
+              final otherUserData =
+                  await _authService.getUserData(activityUserId);
+              userName = otherUserData?.get('name') ?? 'Unknown User';
+            } catch (e) {
+              userName = 'Unknown User';
+            }
+          }
+        }
+
+        // Check activity type
+        final activityType = data['activityType'] as String? ?? '';
+
+        // Create activity entry
+        final activityEntry = {
+          'activity': _formatActivity(data),
+          'person': userName,
+          'time': _formatTime(timestamp),
+          'activityType': activityType,
+          'data': data, // Store original data for reference
+        };
+
+        // Group by date
         final dayData = {
           'date': date.day.toString(),
           'day': _getDayName(date.weekday),
-          'activities': [
-            {
-              'activity': _formatActivity(data),
-              'person': userData!['name'] ?? 'Unknown User',
-              'time': _formatTime(timestamp),
-            }
-          ],
+          'activities': [activityEntry],
         };
 
         if (grouped.containsKey(monthYear)) {
@@ -78,9 +120,7 @@ class _HistoryState extends State<History> {
             final existingDay = grouped[monthYear]![existingDayIndex];
             final activities =
                 existingDay['activities'] as List<Map<String, dynamic>>;
-            final newActivity =
-                dayData['activities'] as List<Map<String, dynamic>>;
-            activities.add(newActivity[0]);
+            activities.add(activityEntry);
           } else {
             // Add new day
             grouped[monthYear]!.add(dayData);
@@ -130,25 +170,60 @@ class _HistoryState extends State<History> {
     final action = data['action'] as String? ?? '';
     final thresholdType = data['thresholdType'] as String? ?? '';
     final enabled = data['enabled'] as bool? ?? false;
+    final activityType = data['activityType'] as String? ?? '';
 
-    switch (action.toLowerCase()) {
-      case 'edit':
-        return 'has edited the $thresholdType.';
-      case 'on':
-        return 'turned ON the CB.';
-      case 'off':
-        return 'turned OFF the CB.';
-      case 'update':
-        return 'has updated the $thresholdType.';
-      case 'create':
-        return 'has created a new $thresholdType.';
-      case 'delete':
-        return 'has deleted the $thresholdType.';
+    // Handle different activity types
+    switch (activityType) {
+      case 'threshold_settings_summary':
+        final changeCount = data['changeCount'] as int? ?? 0;
+        return 'made changes to Threshold Settings ($changeCount changes).';
+      case 'circuit_breaker_action':
+        switch (action.toLowerCase()) {
+          case 'on':
+            return 'turned ON the CB.';
+          case 'off':
+            return 'turned OFF the CB.';
+          default:
+            return 'changed the CB state.';
+        }
+      case 'threshold_change':
+        switch (action.toLowerCase()) {
+          case 'edit':
+            return 'has edited the $thresholdType.';
+          case 'update':
+            return 'has updated the $thresholdType.';
+          case 'create':
+            return 'has created a new $thresholdType.';
+          case 'delete':
+            return 'has deleted the $thresholdType.';
+          default:
+            if (enabled) {
+              return 'enabled the $thresholdType.';
+            } else {
+              return 'disabled the $thresholdType.';
+            }
+        }
       default:
-        if (enabled) {
-          return 'enabled the $thresholdType.';
-        } else {
-          return 'disabled the $thresholdType.';
+        // Fallback for legacy entries or other activity types
+        switch (action.toLowerCase()) {
+          case 'edit':
+            return 'has edited the $thresholdType.';
+          case 'on':
+            return 'turned ON the CB.';
+          case 'off':
+            return 'turned OFF the CB.';
+          case 'update':
+            return 'has updated the $thresholdType.';
+          case 'create':
+            return 'has created a new $thresholdType.';
+          case 'delete':
+            return 'has deleted the $thresholdType.';
+          default:
+            if (enabled) {
+              return 'enabled the $thresholdType.';
+            } else {
+              return 'disabled the $thresholdType.';
+            }
         }
     }
   }

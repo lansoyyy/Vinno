@@ -468,6 +468,48 @@ class ThresholdMonitorService {
     }
   }
 
+  // Log circuit breaker on/off action to Firestore
+  static Future<void> logCircuitBreakerAction({
+    required String scbId,
+    required String scbName,
+    required String action, // 'on' or 'off'
+  }) async {
+    try {
+      await FirebaseFirestore.instance.collection('activityLogs').add({
+        'scbId': scbId,
+        'scbName': scbName,
+        'activityType': 'circuit_breaker_action',
+        'action': action,
+        'timestamp': FieldValue.serverTimestamp(),
+        'userId': FirebaseAuth.instance.currentUser?.uid,
+      });
+    } catch (e) {
+      print('Error logging circuit breaker action: $e');
+    }
+  }
+
+  // Log threshold settings summary to Firestore (for multiple threshold changes at once)
+  static Future<void> logThresholdSettingsSummary({
+    required String scbId,
+    required String scbName,
+    required List<Map<String, dynamic>> thresholdChanges,
+  }) async {
+    try {
+      await FirebaseFirestore.instance.collection('activityLogs').add({
+        'scbId': scbId,
+        'scbName': scbName,
+        'activityType': 'threshold_settings_summary',
+        'action': 'update',
+        'thresholdChanges': thresholdChanges,
+        'changeCount': thresholdChanges.length,
+        'timestamp': FieldValue.serverTimestamp(),
+        'userId': FirebaseAuth.instance.currentUser?.uid,
+      });
+    } catch (e) {
+      print('Error logging threshold settings summary: $e');
+    }
+  }
+
   // Check if we should notify for this violation (prevent spam)
   bool shouldNotify(ThresholdViolation violation) {
     final key = '${violation.scbId}_${violation.type}';

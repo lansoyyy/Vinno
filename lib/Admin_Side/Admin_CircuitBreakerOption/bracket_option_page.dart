@@ -29,7 +29,7 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               // Stack: Button to On/Off the Circuit Breaker
-              BracketOnOff(click: !click, onPress: buttonClick), // height = 280
+              // BracketOnOff(click: !click, onPress: buttonClick), // height = 280
               // Options
               Container(
                 height: MediaQuery.of(context).size.height * .6,

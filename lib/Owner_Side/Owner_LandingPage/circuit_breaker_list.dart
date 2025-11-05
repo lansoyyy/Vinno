@@ -8,6 +8,7 @@ import 'package:smart_cb_1/Owner_Side/Owner_Statistics/statistics_menu.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:smart_cb_1/services/firebase_auth_service.dart';
+import 'package:smart_cb_1/services/threshold_monitor_service.dart';
 import 'package:smart_cb_1/util/const.dart';
 
 class CircuitBreakerList extends StatefulWidget {
@@ -218,6 +219,13 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
           content: Text('${cb['scbName']} turned ${newState ? 'ON' : 'OFF'}'),
           duration: Duration(seconds: 2),
         ),
+      );
+
+      // Log the circuit breaker action to activity logs
+      await ThresholdMonitorService.logCircuitBreakerAction(
+        scbId: cb['scbId'],
+        scbName: cb['scbName'],
+        action: newState ? 'on' : 'off',
       );
     } catch (e) {
       // Revert on error

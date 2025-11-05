@@ -5,6 +5,7 @@ import 'package:smart_cb_1/Owner_Side/Owner_Navigation/navigation_page.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:smart_cb_1/services/threshold_monitor_service.dart';
 
 class BracketOptionPage extends StatefulWidget {
   final Map<String, dynamic>? cbData;
@@ -158,7 +159,7 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
           .child(widget.cbData!['scbId'])
           .child('servoStatus')
           .onValue
-          .listen((event) {
+          .listen((event) async {
         final currentServoStatus = event.snapshot.value;
 
         // Check if servo status has changed from original
@@ -179,6 +180,13 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
               backgroundColor: Colors.green,
               duration: Duration(seconds: 2),
             ),
+          );
+
+          // Log the circuit breaker action to activity logs
+          await ThresholdMonitorService.logCircuitBreakerAction(
+            scbId: widget.cbData!['scbId'],
+            scbName: widget.cbData!['scbName'],
+            action: newIsOnValue ? 'on' : 'off',
           );
         }
       });
