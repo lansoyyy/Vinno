@@ -17,7 +17,7 @@ class _WifiConnectionListState extends State<WifiConnectionList> {
   String? connectedSSID;
   List<WiFiAccessPoint> wifiNetworks = [];
   bool canScan = false;
-  
+
   // Circuit breaker data from previous screen
   Map<String, dynamic>? cbData;
   double? userLatitude;
@@ -35,7 +35,8 @@ class _WifiConnectionListState extends State<WifiConnectionList> {
     super.didChangeDependencies();
     // Get data passed from previous screen
     if (cbData == null) {
-      cbData = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      cbData =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     }
   }
 
@@ -266,21 +267,33 @@ class _WifiConnectionListState extends State<WifiConnectionList> {
       selectedNetwork = networkName;
     });
 
+    // Validate WiFi password
+    if (password.isNotEmpty && password.length < 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'WiFi password must be at least 8 characters long for secured networks'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     // Prepare all circuit breaker data
     final Map<String, dynamic> completeData = {
       // Data from add_new_cb screen
       'scbName': cbData?['scbName'] ?? '',
       'scbId': cbData?['scbId'] ?? '',
       'circuitBreakerRating': cbData?['circuitBreakerRating'] ?? 0,
-      
+
       // WiFi data
       'wifiName': networkName,
       'wifiPassword': password,
-      
+
       // User location
       'latitude': userLatitude ?? 0.0,
       'longitude': userLongitude ?? 0.0,
-      
+
       // Initial values for other fields
       'isOn': true,
       'voltage': 0,

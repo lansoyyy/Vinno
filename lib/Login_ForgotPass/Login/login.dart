@@ -252,6 +252,12 @@ class _LoginPageState extends State<LoginPage> {
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16),
               ),
+              const SizedBox(height: 15),
+              const Text(
+                "If your previous verification email has expired, you can request a new one.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
             ],
           ),
           actions: [
@@ -286,7 +292,7 @@ class _LoginPageState extends State<LoginPage> {
                   if (resendError != null) {
                     _showMessage(resendError);
                   } else {
-                    _showMessage("Verification email resent to $email");
+                    _showMessage("New verification email sent to $email");
                   }
 
                   // Sign out the user
@@ -303,7 +309,7 @@ class _LoginPageState extends State<LoginPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text("Resend Email"),
+              child: const Text("Request New Verification"),
             ),
           ],
         );

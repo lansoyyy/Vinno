@@ -62,6 +62,43 @@ class _SearchConnectionState extends State<SearchConnection> {
       // Create a unique key for this circuit breaker
       final String cbKey = cbData!['scbId'];
 
+      // Check if this CB already exists and validate ownership
+      final existingCbSnapshot =
+          await dbRef.child('circuitBreakers').child(cbKey).get();
+      if (existingCbSnapshot.exists) {
+        final existingCbData =
+            Map<String, dynamic>.from(existingCbSnapshot.value as Map);
+        final existingOwnerId = existingCbData['ownerId'];
+
+        // Get current user's owner ID
+        String currentOwnerId = user.uid;
+        if (box.read('accountType') == 'Admin' ||
+            box.read('accountType') == 'Staff') {
+          DocumentSnapshot? userData =
+              await FirebaseAuthService().getUserData(user.uid);
+          if (userData != null && userData.exists) {
+            Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
+            currentOwnerId = data['createdBy'];
+          }
+        }
+
+        // If the CB exists and is owned by someone else, prevent adding
+        if (existingOwnerId != null && existingOwnerId != currentOwnerId) {
+          setState(() {
+            isSaving = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'This circuit breaker is already owned by another user.')),
+          );
+          return;
+        }
+      }
+
+      // WiFi password is already validated in wifi_connection_list.dart
+      // No additional password validation needed here
+
       // Prepare data for Realtime Database
 
       Map<String, dynamic> circuitBreakerData = {};

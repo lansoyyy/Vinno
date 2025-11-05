@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:smart_cb_1/services/firebase_auth_service.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 class AddNewCb extends StatefulWidget {
   const AddNewCb({super.key});
@@ -11,6 +16,90 @@ class _AddNewCbState extends State<AddNewCb> {
   final TextEditingController cbName = TextEditingController();
   final TextEditingController cbID = TextEditingController();
   final TextEditingController ampValue = TextEditingController();
+
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+  final FirebaseAuthService _authService = FirebaseAuthService();
+
+  List<String> existingCBIds = [];
+  bool isLoadingCBIds = false;
+  String? currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _getCurrentUser();
+    _fetchExistingCBIds();
+  }
+
+  Future<void> _getCurrentUser() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      setState(() {
+        currentUserId = user.uid;
+      });
+    }
+  }
+
+  Future<void> _fetchExistingCBIds() async {
+    setState(() {
+      isLoadingCBIds = true;
+    });
+
+    try {
+      final snapshot = await _dbRef.child('circuitBreakers').get();
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>?;
+        if (data != null) {
+          final List<String> ids = [];
+          data.forEach((key, value) {
+            ids.add(key.toString());
+          });
+          setState(() {
+            existingCBIds = ids;
+            isLoadingCBIds = false;
+          });
+        }
+      }
+      setState(() {
+        isLoadingCBIds = false;
+      });
+    } catch (e) {
+      print('Error fetching CB IDs: $e');
+      setState(() {
+        isLoadingCBIds = false;
+      });
+    }
+  }
+
+  Future<bool> _checkIfCBIsOwned(String cbId) async {
+    try {
+      final snapshot = await _dbRef.child('circuitBreakers').child(cbId).get();
+      if (snapshot.exists) {
+        final cbData = Map<String, dynamic>.from(snapshot.value as Map);
+        final ownerId = cbData['ownerId'];
+
+        if (ownerId != null) {
+          // Check if the current user is the owner
+          if (box.read('accountType') == 'Admin' ||
+              box.read('accountType') == 'Staff') {
+            DocumentSnapshot? userData =
+                await _authService.getUserData(currentUserId ?? '');
+            if (userData != null && userData.exists) {
+              Map<String, dynamic> data =
+                  userData.data() as Map<String, dynamic>;
+              return ownerId == data['createdBy'];
+            }
+          } else {
+            return ownerId == currentUserId;
+          }
+        }
+      }
+      return false;
+    } catch (e) {
+      print('Error checking CB ownership: $e');
+      return false;
+    }
+  }
 
   // A helper function to build custom input borders
   OutlineInputBorder customBorder({
@@ -116,20 +205,45 @@ class _AddNewCbState extends State<AddNewCb> {
                               ),
                             ),
                           ),
-                          TextField(
-                            controller: cbID,
-                            decoration: InputDecoration(
-                              hintText: "eg. AAAA-BBBB-CCCC-DDDD-1234",
-                              border: customBorder(
-                                noBorder: true,
-                              ), // removes border
-                              focusedBorder: customBorder(
-                                isFocused: true,
-                                color: Colors.grey,
-                                width: 2,
-                              ),
-                              enabledBorder: customBorder(color: Colors.grey),
-                            ),
+                          Autocomplete<String>(
+                            optionsBuilder:
+                                (TextEditingValue textEditingValue) {
+                              if (textEditingValue.text.isEmpty) {
+                                return const Iterable<String>.empty();
+                              }
+                              return existingCBIds.where((String option) {
+                                return option.toLowerCase().contains(
+                                    textEditingValue.text.toLowerCase());
+                              });
+                            },
+                            onSelected: (String selection) {
+                              cbID.text = selection;
+                            },
+                            fieldViewBuilder: (context, controller, focusNode,
+                                onEditingComplete) {
+                              controller.text = cbID.text;
+                              controller.addListener(() {
+                                cbID.text = controller.text;
+                              });
+                              return TextField(
+                                controller: controller,
+                                focusNode: focusNode,
+                                onEditingComplete: onEditingComplete,
+                                decoration: InputDecoration(
+                                  hintText: "eg. AAAA-BBBB-CCCC-DDDD-1234",
+                                  border: customBorder(
+                                    noBorder: true,
+                                  ), // removes border
+                                  focusedBorder: customBorder(
+                                    isFocused: true,
+                                    color: Colors.grey,
+                                    width: 2,
+                                  ),
+                                  enabledBorder:
+                                      customBorder(color: Colors.grey),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -180,7 +294,7 @@ class _AddNewCbState extends State<AddNewCb> {
                 Column(
                   children: [
                     ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         // Validate inputs
                         if (cbName.text.trim().isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -216,7 +330,46 @@ class _AddNewCbState extends State<AddNewCb> {
                           return;
                         }
 
-                        // Navigate with data
+                        // Check if CB ID exists and validate ownership
+                        final String inputCbId = cbID.text.trim();
+                        if (existingCBIds.contains(inputCbId)) {
+                          // Check if this CB is already owned by someone else
+                          final isOwned = await _checkIfCBIsOwned(inputCbId);
+                          if (isOwned) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'This circuit breaker is already owned by you. Please use a different ID.')),
+                            );
+                            return;
+                          } else {
+                            // Check if it's owned by someone else
+                            try {
+                              final snapshot = await _dbRef
+                                  .child('circuitBreakers')
+                                  .child(inputCbId)
+                                  .get();
+                              if (snapshot.exists) {
+                                final cbData = Map<String, dynamic>.from(
+                                    snapshot.value as Map);
+                                final ownerId = cbData['ownerId'];
+                                if (ownerId != null &&
+                                    ownerId != currentUserId) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'This circuit breaker is already owned by another user. Please use a different ID.')),
+                                  );
+                                  return;
+                                }
+                              }
+                            } catch (e) {
+                              print('Error checking CB ownership: $e');
+                            }
+                          }
+                        }
+
+                        // Navigate with data (WiFi password will be entered in next screen)
                         Navigator.pushNamed(
                           context,
                           '/wifi_connection_list',
