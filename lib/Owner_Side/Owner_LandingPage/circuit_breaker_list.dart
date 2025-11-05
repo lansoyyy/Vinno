@@ -634,7 +634,11 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                             onTap: () {
                               Navigator.pushNamed(context, '/settingspage');
                             },
-                            child: Icon(Icons.settings, size: 30),
+                            child: Icon(
+                              Icons.settings,
+                              size: 30,
+                              color: Color(0xFF2ECC71),
+                            ),
                           ),
 
                         if (isEditMode)

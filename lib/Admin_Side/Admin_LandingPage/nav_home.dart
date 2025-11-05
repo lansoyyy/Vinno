@@ -28,7 +28,6 @@ class _NavHomeState extends State<NavHome> {
                   ),
                 ],
               ),
-
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: Row(
@@ -59,7 +58,11 @@ class _NavHomeState extends State<NavHome> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.location_on, size: 30),
+                            Icon(
+                              Icons.location_on,
+                              size: 30,
+                              color: Color(0xFF2ECC71),
+                            ),
                             SizedBox(width: 10),
                             Text(
                               'Location',
@@ -106,7 +109,11 @@ class _NavHomeState extends State<NavHome> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.manage_accounts_sharp, size: 30),
+                            Icon(
+                              Icons.manage_accounts_sharp,
+                              size: 30,
+                              color: Color(0xFF2ECC71),
+                            ),
                             SizedBox(width: 10),
                             Text(
                               'Managers',
@@ -128,7 +135,6 @@ class _NavHomeState extends State<NavHome> {
             ),
           ),
         ),
-
         GestureDetector(
           onTap: () {
             Navigator.pushNamed(context, '/addnewcb');

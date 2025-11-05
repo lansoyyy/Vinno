@@ -26,7 +26,6 @@ class _NavigationPageState extends State<NavigationPage> {
               ),
             ],
           ),
-
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,7 +55,11 @@ class _NavigationPageState extends State<NavigationPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.home_filled, size: 30),
+                      Icon(
+                        Icons.home_filled,
+                        size: 30,
+                        color: Color(0xFF2ECC71),
+                      ),
                       SizedBox(width: 10),
                       Text(
                         'Home',
@@ -104,7 +107,11 @@ class _NavigationPageState extends State<NavigationPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.settings_rounded, size: 30),
+                      Icon(
+                        Icons.settings_rounded,
+                        size: 30,
+                        color: Color(0xFF2ECC71),
+                      ),
                       SizedBox(width: 10),
                       Text(
                         'Settings',
