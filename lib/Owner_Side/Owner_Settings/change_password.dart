@@ -19,6 +19,8 @@ class _ChangePasswordState extends State<ChangePassword> {
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  bool _isOldPasswordValid = false;
+  bool _isCheckingPassword = false;
 
   final FirebaseAuthService _authService = FirebaseAuthService();
 
@@ -28,6 +30,49 @@ class _ChangePasswordState extends State<ChangePassword> {
     newPasswordController.dispose();
     confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _verifyOldPassword(String password) async {
+    if (password.isEmpty) {
+      setState(() {
+        _isOldPasswordValid = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isCheckingPassword = true;
+    });
+
+    try {
+      User? user = _authService.currentUser;
+      if (user != null && user.email != null) {
+        // Create credential to verify old password
+        AuthCredential credential = EmailAuthProvider.credential(
+          email: user.email!,
+          password: password,
+        );
+
+        // Try to reauthenticate with the provided password
+        await user.reauthenticateWithCredential(credential);
+
+        setState(() {
+          _isOldPasswordValid = true;
+        });
+      } else {
+        setState(() {
+          _isOldPasswordValid = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isOldPasswordValid = false;
+      });
+    } finally {
+      setState(() {
+        _isCheckingPassword = false;
+      });
+    }
   }
 
   void _changePassword() async {
@@ -122,6 +167,44 @@ class _ChangePasswordState extends State<ChangePassword> {
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
+    );
+  }
+
+  void _showTermsAndConditionsDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Terms & Conditions',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: const Text(
+                "By using our smart circuit breaker application, you agree to abide by these Terms and Conditions. This agreement grants you a limited, non-exclusive license to use the app for managing your smart circuit breaker device(s). You are responsible for securing your login credentials and adhering to all usage guidelines. Unauthorized use, including any attempts to interfere with the app's operation or security, is prohibited.\n\nThe application may require updates from time to time to maintain functionality or improve security. By using the app, you agree to allow these automatic updates as necessary. We aim to provide reliable service but are not liable for any direct or indirect damages arising from the use or inability to use the application, including data loss, unauthorized access, or device malfunctions.\n\nWe reserve the right to terminate or restrict access to the app if these Terms are violated. These Terms and Conditions are governed by the laws of Philippines, and any disputes will be resolved under local jurisdiction. If you have questions regarding the Privacy Policy or Terms and Conditions, please contact us at SmartCB@gmail.com.",
+                style: TextStyle(fontSize: 14),
+                textAlign: TextAlign.justify,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Close',
+                style: TextStyle(color: Color(0xFF2ECC71)),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -262,12 +345,52 @@ class _ChangePasswordState extends State<ChangePassword> {
                         TextField(
                           controller: oldPasswordController,
                           obscureText: _obscureOldPassword,
+                          onChanged: (value) {
+                            // Debounce password verification
+                            Future.delayed(const Duration(milliseconds: 500),
+                                () {
+                              if (oldPasswordController.text == value) {
+                                _verifyOldPassword(value);
+                              }
+                            });
+                          },
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: Colors.white,
                             suffixIcon: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                // Password validation indicator
+                                if (_isCheckingPassword)
+                                  const Padding(
+                                    padding: EdgeInsets.all(12.0),
+                                    child: SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                          Color(0xFF2ECC71),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                else if (oldPasswordController.text.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.all(12.0),
+                                    child: Icon(
+                                      _isOldPasswordValid
+                                          ? Icons.check_circle
+                                          : Icons.cancel,
+                                      color: _isOldPasswordValid
+                                          ? Colors.green
+                                          : Colors.red,
+                                      size: 20,
+                                    ),
+                                  )
+                                else
+                                  const SizedBox(width: 40),
                                 // Clear button
                                 IconButton(
                                   icon: Container(
@@ -284,6 +407,9 @@ class _ChangePasswordState extends State<ChangePassword> {
                                   ),
                                   onPressed: () {
                                     oldPasswordController.clear();
+                                    setState(() {
+                                      _isOldPasswordValid = false;
+                                    });
                                   },
                                 ),
                                 // Visibility toggle
@@ -434,9 +560,7 @@ class _ChangePasswordState extends State<ChangePassword> {
                     // Terms and Conditions
                     Center(
                       child: GestureDetector(
-                        onTap: () {
-                          Navigator.pushNamed(context, '/terms');
-                        },
+                        onTap: _showTermsAndConditionsDialog,
                         child: const Text(
                           'Terms and Conditions',
                           style: TextStyle(

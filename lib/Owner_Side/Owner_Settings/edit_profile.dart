@@ -137,6 +137,44 @@ class _EditProfileState extends State<EditProfile> {
     }
   }
 
+  void _showTermsAndConditionsDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Terms & Conditions',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: const Text(
+                "By using our smart circuit breaker application, you agree to abide by these Terms and Conditions. This agreement grants you a limited, non-exclusive license to use the app for managing your smart circuit breaker device(s). You are responsible for securing your login credentials and adhering to all usage guidelines. Unauthorized use, including any attempts to interfere with the app's operation or security, is prohibited.\n\nThe application may require updates from time to time to maintain functionality or improve security. By using the app, you agree to allow these automatic updates as necessary. We aim to provide reliable service but are not liable for any direct or indirect damages arising from the use or inability to use the application, including data loss, unauthorized access, or device malfunctions.\n\nWe reserve the right to terminate or restrict access to the app if these Terms are violated. These Terms and Conditions are governed by the laws of Philippines, and any disputes will be resolved under local jurisdiction. If you have questions regarding the Privacy Policy or Terms and Conditions, please contact us at SmartCB@gmail.com.",
+                style: TextStyle(fontSize: 14),
+                textAlign: TextAlign.justify,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Close',
+                style: TextStyle(color: Color(0xFF2ECC71)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   OutlineInputBorder customBorder({
     double radius = 16.0,
     Color color = Colors.grey,
@@ -508,9 +546,7 @@ class _EditProfileState extends State<EditProfile> {
 
                     // Terms and Conditions
                     GestureDetector(
-                      onTap: () {
-                        Navigator.pushNamed(context, '/terms');
-                      },
+                      onTap: _showTermsAndConditionsDialog,
                       child: const Text(
                         'Terms and Conditions',
                         style: TextStyle(

@@ -11,15 +11,46 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  bool LightMode = false;
   bool _isLoggingOut = false;
 
   final FirebaseAuthService _authService = FirebaseAuthService();
 
-  void buttonClick(bool value) {
-    setState(() {
-      LightMode = value;
-    });
+  void _showTermsAndConditionsDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Terms & Conditions',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: const Text(
+                "By using our smart circuit breaker application, you agree to abide by these Terms and Conditions. This agreement grants you a limited, non-exclusive license to use the app for managing your smart circuit breaker device(s). You are responsible for securing your login credentials and adhering to all usage guidelines. Unauthorized use, including any attempts to interfere with the app's operation or security, is prohibited.\n\nThe application may require updates from time to time to maintain functionality or improve security. By using the app, you agree to allow these automatic updates as necessary. We aim to provide reliable service but are not liable for any direct or indirect damages arising from the use or inability to use the application, including data loss, unauthorized access, or device malfunctions.\n\nWe reserve the right to terminate or restrict access to the app if these Terms are violated. These Terms and Conditions are governed by the laws of Philippines, and any disputes will be resolved under local jurisdiction. If you have questions regarding the Privacy Policy or Terms and Conditions, please contact us at SmartCB@gmail.com.",
+                style: TextStyle(fontSize: 14),
+                textAlign: TextAlign.justify,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Close',
+                style: TextStyle(color: Color(0xFF2ECC71)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showLogoutDialog() {
@@ -304,85 +335,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
                       SizedBox(height: 15),
 
-                      // Dark Mode
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Color(0xFFF9F9F9),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Color(0xFF000000).withOpacity(0.25),
-                              offset: Offset(-4, 4), // x, y offset
-                              blurRadius: 2,
-                              spreadRadius: 0,
-                            ),
-                          ],
-                          borderRadius: BorderRadius.circular(
-                            20,
-                          ), // Match button shape
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10.0),
-                              decoration: BoxDecoration(
-                                color: Color(0xffC8E5C2),
-                                borderRadius: BorderRadius.circular(
-                                  40,
-                                ), // Match button shape
-                              ),
-                              child: Icon(
-                                Icons.dark_mode,
-                                color: Color(0xff2DCC70),
-                                size: 50,
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(left: 10),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Dark Mode',
-                                    style: TextStyle(
-                                      fontSize: 19,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width * 0.1,
-                                  ),
-                                  Switch(
-                                    value: LightMode,
-                                    onChanged: (value) => buttonClick(value),
-                                    activeColor: Color.fromARGB(
-                                      255,
-                                      0,
-                                      205,
-                                      86,
-                                    ),
-                                    inactiveTrackColor: Color(0xFEE9E9E9),
-                                    thumbColor: MaterialStateProperty.all(
-                                      LightMode
-                                          ? const Color(0xFFFFFFFF)
-                                          : const Color(0xFFFFFFFF),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
                       // Debug Only: Mock Data Generator (only visible in debug mode)
                       if (kDebugMode) ...[
                         SizedBox(height: 15),
@@ -535,12 +487,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
 
                       GestureDetector(
-                        onTap: () {
-                          // Navigator.push(
-                          //         context,
-                          //         MaterialPageRoute(builder: (context) => BracketOptionPage()),
-                          //       );
-                        },
+                        onTap: _showTermsAndConditionsDialog,
                         child: Text(
                           'Terms and Condition',
                           style: TextStyle(
