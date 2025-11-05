@@ -141,10 +141,12 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                       iconSize: 28,
                       onPressed: () {
                         setState(() {
+                          // Calculate max power based on CB rating (220V * CB rating)
+                          final maxPower = 220.0 * widget.cbRating;
                           widget.initialValue =
                               (widget.initialValue! - 10).clamp(
                             0,
-                            22000,
+                            maxPower,
                           );
                           widget.onChanged?.call(
                               widget.initialValue!, widget.initialAction!);
@@ -160,8 +162,8 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                         child: Slider(
                           value: widget.initialValue!,
                           min: 0,
-                          max: 22000,
-                          divisions: 2200,
+                          max: 220.0 * widget.cbRating,
+                          divisions: (220.0 * widget.cbRating / 10).round(),
                           activeColor: Color(0xFF2ECC71),
                           inactiveColor: Colors.grey[300],
                           onChanged: (value) {
@@ -179,10 +181,12 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                       iconSize: 28,
                       onPressed: () {
                         setState(() {
+                          // Calculate max power based on CB rating (220V * CB rating)
+                          final maxPower = 220.0 * widget.cbRating;
                           widget.initialValue =
                               (widget.initialValue! + 10).clamp(
                             0,
-                            22000,
+                            maxPower,
                           );
                           widget.onChanged?.call(
                               widget.initialValue!, widget.initialAction!);

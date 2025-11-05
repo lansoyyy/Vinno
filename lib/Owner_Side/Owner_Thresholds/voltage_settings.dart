@@ -60,8 +60,13 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
 
       if (cbSnapshot.exists) {
         final cbInfo = Map<String, dynamic>.from(cbSnapshot.value as Map);
-        cbRating =
-            (cbInfo['rating'] ?? 20.0).toDouble().clamp(1.0, MAX_CB_RATING);
+        // Try different field names that might contain the CB rating
+        cbRating = (cbInfo['rating'] ??
+                cbInfo['circuitBreakerRating'] ??
+                cbInfo['amperage'] ??
+                20.0)
+            .toDouble()
+            .clamp(1.0, MAX_CB_RATING);
       }
 
       final snapshot = await _dbRef

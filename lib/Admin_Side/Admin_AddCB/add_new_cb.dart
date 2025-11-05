@@ -54,7 +54,6 @@ class _AddNewCbState extends State<AddNewCb> {
                           Navigator.pushNamed(context, '/cblist');
                         },
                       ),
-
                       Align(
                         alignment: Alignment.center,
                         child: Text(
@@ -68,7 +67,6 @@ class _AddNewCbState extends State<AddNewCb> {
                     ],
                   ),
                 ),
-
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 30),
                   child: Column(
@@ -86,7 +84,6 @@ class _AddNewCbState extends State<AddNewCb> {
                               ),
                             ),
                           ),
-
                           TextField(
                             controller: cbName,
                             decoration: InputDecoration(
@@ -119,7 +116,6 @@ class _AddNewCbState extends State<AddNewCb> {
                               ),
                             ),
                           ),
-
                           TextField(
                             controller: cbID,
                             decoration: InputDecoration(
@@ -152,7 +148,6 @@ class _AddNewCbState extends State<AddNewCb> {
                               ),
                             ),
                           ),
-
                           TextField(
                             controller: ampValue,
                             decoration: InputDecoration(
@@ -168,11 +163,9 @@ class _AddNewCbState extends State<AddNewCb> {
                               enabledBorder: customBorder(color: Colors.grey),
                             ),
                           ),
-
                           SizedBox(height: 5),
-
                           Text(
-                            '*Note: The maximum current it can handle is 200 A.',
+                            '*Note: The maximum current it can handle is 100 A.',
                             style: TextStyle(
                               fontSize: 12,
                               fontStyle: FontStyle.italic,
@@ -184,12 +177,55 @@ class _AddNewCbState extends State<AddNewCb> {
                     ],
                   ),
                 ),
-
                 Column(
                   children: [
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/search_connection');
+                        // Validate inputs
+                        if (cbName.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Please enter SCB Name')),
+                          );
+                          return;
+                        }
+                        if (cbID.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Please enter SCB ID')),
+                          );
+                          return;
+                        }
+                        if (ampValue.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Please enter circuit breaker rating')),
+                          );
+                          return;
+                        }
+
+                        // Parse amperage value
+                        final rating = double.tryParse(ampValue.text.trim());
+                        if (rating == null || rating <= 0 || rating > 100) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Please enter a valid rating (1-100 A)')),
+                          );
+                          return;
+                        }
+
+                        // Navigate with data (WiFi password will be entered in next screen)
+                        Navigator.pushNamed(
+                          context,
+                          '/wifi_connection_list',
+                          arguments: {
+                            'scbName': cbName.text.trim(),
+                            'scbId': cbID.text.trim(),
+                            'circuitBreakerRating': rating,
+                          },
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green.shade300,
@@ -208,9 +244,7 @@ class _AddNewCbState extends State<AddNewCb> {
                         style: TextStyle(fontSize: 18, color: Colors.black),
                       ),
                     ),
-
                     SizedBox(height: 20),
-
                     ElevatedButton(
                       onPressed: () {
                         Navigator.pushNamed(context, '/cblist');

@@ -3,8 +3,16 @@ import 'package:flutter/material.dart';
 class OverpowerSetting extends StatefulWidget {
   final void Function(bool) onPress;
   final Widget divider;
+  final double cbRating; // CB rating in Amps
+  final Function(double value, String action)? onChanged;
 
-  OverpowerSetting({super.key, required this.onPress, required this.divider});
+  OverpowerSetting({
+    super.key,
+    required this.onPress,
+    required this.divider,
+    this.cbRating = 20.0,
+    this.onChanged,
+  });
 
   @override
   State<OverpowerSetting> createState() => _OverpowerSettingState();
@@ -12,8 +20,15 @@ class OverpowerSetting extends StatefulWidget {
 
 class _OverpowerSettingState extends State<OverpowerSetting> {
   bool isExpanded = false;
-  double _overpowerValue = 3450.0;
+  double _overpowerValue = 4400.0; // Default: 220V * 20A = 4400W
   String _overpowerChosen = 'Trip';
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with CB rating * 220V as default value
+    _overpowerValue = 220.0 * widget.cbRating;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +55,6 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         leading: Icon(Icons.energy_savings_leaf_outlined, size: 30),
         tilePadding: EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -80,11 +94,9 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
             ),
           ],
         ),
-
         backgroundColor: Color(0xFF2ECC71),
         textColor: Colors.white,
         iconColor: Colors.white,
-
         children: [
           Container(
             width: double.infinity,
@@ -100,9 +112,7 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                   ),
                 ),
-
                 widget.divider,
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -131,14 +141,17 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                       iconSize: 28,
                       onPressed: () {
                         setState(() {
-                          _overpowerValue = (_overpowerValue - 1).clamp(
+                          // Calculate max power based on CB rating (220V * CB rating)
+                          final maxPower = 220.0 * widget.cbRating;
+                          _overpowerValue = (_overpowerValue - 10).clamp(
                             0,
-                            4000,
+                            maxPower,
                           );
+                          widget.onChanged
+                              ?.call(_overpowerValue, _overpowerChosen);
                         });
                       },
                     ),
-
                     SizedBox(
                       width: 170,
                       child: SliderTheme(
@@ -148,34 +161,38 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
                         child: Slider(
                           value: _overpowerValue,
                           min: 0,
-                          max: 4000,
-                          divisions: 4000,
+                          max: 220.0 * widget.cbRating,
+                          divisions: (220.0 * widget.cbRating / 10).round(),
                           activeColor: Color(0xFF2ECC71),
                           inactiveColor: Colors.grey[300],
                           onChanged: (value) {
                             setState(() {
                               _overpowerValue = value;
                             });
+                            widget.onChanged
+                                ?.call(_overpowerValue, _overpowerChosen);
                           },
                         ),
                       ),
                     ),
-
                     IconButton(
                       icon: Icon(Icons.add),
                       iconSize: 28,
                       onPressed: () {
                         setState(() {
-                          _overpowerValue = (_overpowerValue + 1).clamp(
+                          // Calculate max power based on CB rating (220V * CB rating)
+                          final maxPower = 220.0 * widget.cbRating;
+                          _overpowerValue = (_overpowerValue + 10).clamp(
                             0,
-                            4000,
+                            maxPower,
                           );
+                          widget.onChanged
+                              ?.call(_overpowerValue, _overpowerChosen);
                         });
                       },
                     ),
                   ],
                 ),
-
                 SizedBox(
                   height: 50,
                   child: Container(
@@ -216,15 +233,15 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
             setState(() {
               _overpowerChosen = 'Off';
             });
+            widget.onChanged?.call(_overpowerValue, _overpowerChosen);
           },
           label: Text(
             'Off',
             style: TextStyle(
               color: (_overpowerChosen == 'Off') ? Colors.white : Colors.black,
-              fontWeight:
-                  (_overpowerChosen == 'Off')
-                      ? FontWeight.w900
-                      : FontWeight.normal,
+              fontWeight: (_overpowerChosen == 'Off')
+                  ? FontWeight.w900
+                  : FontWeight.normal,
             ),
           ),
         ),
@@ -234,10 +251,9 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
             style: TextStyle(
               color:
                   (_overpowerChosen == 'Alarm') ? Colors.white : Colors.black,
-              fontWeight:
-                  (_overpowerChosen == 'Alarm')
-                      ? FontWeight.bold
-                      : FontWeight.normal,
+              fontWeight: (_overpowerChosen == 'Alarm')
+                  ? FontWeight.bold
+                  : FontWeight.normal,
             ),
           ),
           showCheckmark: false,
@@ -251,6 +267,7 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
             setState(() {
               _overpowerChosen = 'Alarm';
             });
+            widget.onChanged?.call(_overpowerValue, _overpowerChosen);
           },
         ),
         ChoiceChip(
@@ -258,10 +275,9 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
             'Trip',
             style: TextStyle(
               color: (_overpowerChosen == 'Trip') ? Colors.white : Colors.black,
-              fontWeight:
-                  (_overpowerChosen == 'Trip')
-                      ? FontWeight.bold
-                      : FontWeight.normal,
+              fontWeight: (_overpowerChosen == 'Trip')
+                  ? FontWeight.bold
+                  : FontWeight.normal,
             ),
           ),
           showCheckmark: false,
@@ -275,6 +291,7 @@ class _OverpowerSettingState extends State<OverpowerSetting> {
             setState(() {
               _overpowerChosen = 'Trip';
             });
+            widget.onChanged?.call(_overpowerValue, _overpowerChosen);
           },
         ),
       ],

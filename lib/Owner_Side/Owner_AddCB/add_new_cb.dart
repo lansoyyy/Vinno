@@ -279,7 +279,7 @@ class _AddNewCbState extends State<AddNewCb> {
                           ),
                           SizedBox(height: 5),
                           Text(
-                            '*Note: The maximum current it can handle is 200 A.',
+                            '*Note: The maximum current it can handle is 100 A.',
                             style: TextStyle(
                               fontSize: 12,
                               fontStyle: FontStyle.italic,
@@ -321,11 +321,11 @@ class _AddNewCbState extends State<AddNewCb> {
 
                         // Parse amperage value
                         final rating = double.tryParse(ampValue.text.trim());
-                        if (rating == null || rating <= 0 || rating > 200) {
+                        if (rating == null || rating <= 0 || rating > 100) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                                 content: Text(
-                                    'Please enter a valid rating (1-200 A)')),
+                                    'Please enter a valid rating (1-100 A)')),
                           );
                           return;
                         }

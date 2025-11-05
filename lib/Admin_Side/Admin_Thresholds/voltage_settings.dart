@@ -5,6 +5,8 @@ import 'package:smart_cb_1/Owner_Side/Owner_Thresholds/overpower_option.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Thresholds/overvoltage_option.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Thresholds/temperature_option.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Thresholds/undervoltage_option.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class VoltageSettingsPage extends StatefulWidget {
   const VoltageSettingsPage({super.key});
@@ -16,6 +18,55 @@ class VoltageSettingsPage extends StatefulWidget {
 class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
   bool isExpanded = false;
   bool isChosen = false;
+  Map<String, dynamic>? cbData;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+
+  // CB Rating constants
+  static const double MAX_CB_RATING =
+      100.0; // Maximum CB current rating in Amps
+  double cbRating = 20.0; // Default 20A breaker
+
+  // Threshold values
+  double overcurrentValue =
+      20.0; // Default to 20A, will be set based on CB rating
+  double overpowerValue = 4400.0; // Default: 220V * 20A = 4400W
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCircuitBreakerData();
+  }
+
+  Future<void> _loadCircuitBreakerData() async {
+    // Get circuit breaker data from route arguments
+    cbData =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+    if (cbData != null) {
+      try {
+        // Load CB rating if available
+        final cbSnapshot =
+            await _dbRef.child('circuitBreakers').child(cbData!['scbId']).get();
+
+        if (cbSnapshot.exists) {
+          final cbInfo = Map<String, dynamic>.from(cbSnapshot.value as Map);
+          // Try different field names that might contain the CB rating
+          cbRating = (cbInfo['rating'] ??
+                  cbInfo['circuitBreakerRating'] ??
+                  cbInfo['amperage'] ??
+                  20.0)
+              .toDouble();
+        }
+
+        setState(() {
+          overcurrentValue = cbRating;
+          overpowerValue = 220.0 * cbRating;
+        });
+      } catch (e) {
+        print('Error loading circuit breaker data: $e');
+      }
+    }
+  }
 
   void _showSaveConfirmationDialog() {
     showDialog(
@@ -154,10 +205,26 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
                       OvercurrentSetting(
                         onPress: ExpandTile,
                         divider: buildDivider(),
+                        cbRating: cbRating,
+                        onChanged: (value, action) {
+                          setState(() {
+                            overcurrentValue = value;
+                            // Auto-update overpower when overcurrent changes
+                            overpowerValue = 220.0 * value;
+                          });
+                        },
                       ),
                       OverpowerSetting(
                         onPress: ExpandTile,
                         divider: buildDivider(),
+                        cbRating: cbRating,
+                        onChanged: (value, action) {
+                          setState(() {
+                            overpowerValue = value;
+                            // Auto-update overcurrent when overpower changes
+                            overcurrentValue = value / 220.0;
+                          });
+                        },
                       ),
                       TemperatureOption(
                         onPress: ExpandTile,

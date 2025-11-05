@@ -144,7 +144,7 @@ class _OvercurrentSettingState extends State<OvercurrentSetting> {
                           widget.initialValue =
                               (widget.initialValue! - 1).clamp(
                             0,
-                            100,
+                            widget.cbRating,
                           );
                           widget.onChanged?.call(
                               widget.initialValue!, widget.initialAction!);
@@ -160,8 +160,8 @@ class _OvercurrentSettingState extends State<OvercurrentSetting> {
                         child: Slider(
                           value: widget.initialValue!,
                           min: 0,
-                          max: 100,
-                          divisions: 200,
+                          max: widget.cbRating,
+                          divisions: (widget.cbRating * 2).round(),
                           activeColor: Color(0xFF2ECC71),
                           inactiveColor: Colors.grey[300],
                           onChanged: (value) {
@@ -182,7 +182,7 @@ class _OvercurrentSettingState extends State<OvercurrentSetting> {
                           widget.initialValue =
                               (widget.initialValue! + 1).clamp(
                             0,
-                            100,
+                            widget.cbRating,
                           );
                           widget.onChanged?.call(
                               widget.initialValue!, widget.initialAction!);

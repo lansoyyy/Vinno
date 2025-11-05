@@ -360,6 +360,7 @@ class _NavHomeState extends State<NavHome> {
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
+                                  color: Color(0xFF2ECC71),
                                 ),
                               ),
                             ],
@@ -439,6 +440,7 @@ class _NavHomeState extends State<NavHome> {
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
+                                  color: Color(0xFF2ECC71),
                                 ),
                               ),
                             ],
