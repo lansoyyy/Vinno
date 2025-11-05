@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_CircuitBreakerOption/bracket-on-off.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Navigation/navigation_page.dart';
@@ -16,6 +17,8 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
   bool click = true;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   bool isToggling = false;
+  StreamSubscription<DatabaseEvent>? _servoStatusSubscription;
+  StreamSubscription<DatabaseEvent>? _cbDataSubscription;
 
   @override
   void initState() {
@@ -24,6 +27,40 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
     if (widget.cbData != null) {
       click = !(widget.cbData!['isOn'] ?? true);
     }
+    // Start listening to real-time CB data updates
+    _startRealtimeDataListener();
+  }
+
+  void _startRealtimeDataListener() {
+    if (widget.cbData == null) return;
+
+    _cbDataSubscription = _dbRef
+        .child('circuitBreakers')
+        .child(widget.cbData!['scbId'])
+        .onValue
+        .listen((event) {
+      if (event.snapshot.exists && mounted) {
+        final updatedData =
+            Map<String, dynamic>.from(event.snapshot.value as Map);
+
+        setState(() {
+          // Update the cbData with real-time values
+          updatedData.forEach((key, value) {
+            widget.cbData![key] = value;
+          });
+
+          // Update the click state based on real-time isOn value
+          click = !(updatedData['isOn'] ?? true);
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _servoStatusSubscription?.cancel();
+    _cbDataSubscription?.cancel();
+    super.dispose();
   }
 
   void buttonClick() {
@@ -40,9 +77,20 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
     });
 
     try {
-      // Toggle the isOn field in Firebase
-      final newIsOnValue = !(widget.cbData!['isOn'] ?? true);
+      // Store current state for potential rollback
+      final originalIsOnValue = widget.cbData!['isOn'] ?? true;
+      final newIsOnValue = !originalIsOnValue;
 
+      // Get current servo status before toggle
+      final servoSnapshot = await _dbRef
+          .child('circuitBreakers')
+          .child(widget.cbData!['scbId'])
+          .child('servoStatus')
+          .get();
+
+      final originalServoStatus = servoSnapshot.value;
+
+      // Toggle the isOn field in Firebase
       await _dbRef
           .child('circuitBreakers')
           .child(widget.cbData!['scbId'])
@@ -50,22 +98,65 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
         'isOn': newIsOnValue,
       });
 
-      // Update local state
+      // Update local state immediately for UI responsiveness
       setState(() {
         widget.cbData!['isOn'] = newIsOnValue;
         click = !newIsOnValue; // Invert for UI display
-        isToggling = false;
       });
 
-      // Show success message
+      // Show initial success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(newIsOnValue
-              ? 'Circuit Breaker turned ON'
-              : 'Circuit Breaker turned OFF'),
-          duration: Duration(seconds: 2),
+              ? 'Turning circuit breaker ON...'
+              : 'Turning circuit breaker OFF...'),
+          duration: Duration(seconds: 1),
         ),
       );
+
+      // Monitor servo status for 5 seconds
+      bool servoStatusChanged = false;
+      Timer? timeoutTimer;
+
+      _servoStatusSubscription = _dbRef
+          .child('circuitBreakers')
+          .child(widget.cbData!['scbId'])
+          .child('servoStatus')
+          .onValue
+          .listen((event) {
+        final currentServoStatus = event.snapshot.value;
+
+        // Check if servo status has changed from original
+        if (currentServoStatus != originalServoStatus) {
+          servoStatusChanged = true;
+          _servoStatusSubscription?.cancel();
+          timeoutTimer?.cancel();
+
+          setState(() {
+            isToggling = false;
+          });
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Circuit breaker successfully ${newIsOnValue ? 'turned ON' : 'turned OFF'}'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      });
+
+      // Set timeout for 5 seconds
+      timeoutTimer = Timer(Duration(seconds: 5), () {
+        _servoStatusSubscription?.cancel();
+
+        if (!servoStatusChanged) {
+          // Rollback the isOn value since servo didn't respond
+          _rollbackCircuitBreakerState(originalIsOnValue);
+        }
+      });
     } catch (e) {
       setState(() {
         isToggling = false;
@@ -75,6 +166,48 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error toggling circuit breaker: $e'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  Future<void> _rollbackCircuitBreakerState(bool originalIsOnValue) async {
+    try {
+      // Rollback the isOn field in Firebase
+      await _dbRef
+          .child('circuitBreakers')
+          .child(widget.cbData!['scbId'])
+          .update({
+        'isOn': originalIsOnValue,
+      });
+
+      // Update local state to original
+      setState(() {
+        widget.cbData!['isOn'] = originalIsOnValue;
+        click = !originalIsOnValue; // Invert for UI display
+        isToggling = false;
+      });
+
+      // Show rollback message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Circuit breaker failed to respond. State reverted to ${originalIsOnValue ? 'ON' : 'OFF'}'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        isToggling = false;
+      });
+
+      // Show error message even for rollback failure
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to revert circuit breaker state: $e'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 3),
         ),
@@ -129,6 +262,7 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
             children: [
               // Stack: Button to On/Off the Circuit Breaker
               BracketOnOff(
+                name: widget.cbData?['scbName'] ?? 'Unknown',
                 click: click,
                 onPress: isToggling ? () {} : _showToggleConfirmationDialog,
               ), // height = 280
@@ -267,7 +401,7 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                                     ),
                                                   ),
                                                   child: Text(
-                                                    'View Voltage Settings',
+                                                    'View Threshold Settings',
                                                     textAlign: TextAlign.center,
                                                   ),
                                                   onPressed: () {

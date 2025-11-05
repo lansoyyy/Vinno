@@ -4,9 +4,14 @@ import 'package:flutter/material.dart';
 
 class BracketOnOff extends StatelessWidget {
   final bool click;
+  final String name;
   final VoidCallback onPress;
 
-  BracketOnOff({super.key, required this.click, required this.onPress});
+  BracketOnOff(
+      {super.key,
+      required this.click,
+      required this.name,
+      required this.onPress});
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +55,7 @@ class BracketOnOff extends StatelessWidget {
               ),
               SizedBox(width: 15),
               Text(
-                'Circuit Breaker Name',
+                name,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,

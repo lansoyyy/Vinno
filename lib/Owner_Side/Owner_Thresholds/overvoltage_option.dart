@@ -219,12 +219,12 @@ class _OvervoltageSettingState extends State<OvervoltageSetting> {
       children: <Widget>[
         ChoiceChip(
           label: Text(
-            'Alarm',
+            'Notify',
             style: TextStyle(
-              color: (widget.initialAction == 'Alarm')
+              color: (widget.initialAction == 'Notify')
                   ? Colors.white
                   : Colors.black,
-              fontWeight: (widget.initialAction == 'Alarm')
+              fontWeight: (widget.initialAction == 'Notify')
                   ? FontWeight.bold
                   : FontWeight.normal,
             ),
@@ -235,10 +235,10 @@ class _OvervoltageSettingState extends State<OvervoltageSetting> {
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           selectedColor: Color(0xFF2ECC71),
-          selected: (widget.initialAction == 'Alarm'),
+          selected: (widget.initialAction == 'Notify'),
           onSelected: (bool value) {
             setState(() {
-              widget.initialAction = 'Alarm';
+              widget.initialAction = 'Notify';
               widget.onChanged
                   ?.call(widget.initialValue!, widget.initialAction!);
             });

@@ -22,7 +22,6 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color(0xFFF2F2F2),
-
       body: SingleChildScrollView(
         child: Container(
           height: MediaQuery.of(context).size.height,
@@ -135,34 +134,35 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                                   ],
                                                   borderRadius:
                                                       BorderRadius.circular(
-                                                        5,
-                                                      ), // Match button shape
+                                                    5,
+                                                  ), // Match button shape
                                                 ),
                                                 child: ElevatedButton(
                                                   style: ButtonStyle(
                                                     padding:
-                                                        MaterialStateProperty.all<
-                                                          EdgeInsets
-                                                        >(EdgeInsets.zero),
+                                                        MaterialStateProperty
+                                                            .all<EdgeInsets>(
+                                                                EdgeInsets
+                                                                    .zero),
                                                     foregroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Colors.white),
+                                                        MaterialStateProperty
+                                                            .all<Color>(
+                                                                Colors.white),
                                                     backgroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Color(0xFF2ECC71)),
-                                                    shape:
-                                                        MaterialStateProperty.all<
-                                                          RoundedRectangleBorder
-                                                        >(
-                                                          RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  5,
-                                                                ),
-                                                          ),
+                                                        MaterialStateProperty
+                                                            .all<Color>(Color(
+                                                                0xFF2ECC71)),
+                                                    shape: MaterialStateProperty
+                                                        .all<
+                                                            RoundedRectangleBorder>(
+                                                      RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(
+                                                          5,
                                                         ),
+                                                      ),
+                                                    ),
                                                   ),
                                                   child: Text(
                                                     'View Voltage Settings',
@@ -435,34 +435,35 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                                   ],
                                                   borderRadius:
                                                       BorderRadius.circular(
-                                                        5,
-                                                      ), // Match button shape
+                                                    5,
+                                                  ), // Match button shape
                                                 ),
                                                 child: ElevatedButton(
                                                   style: ButtonStyle(
                                                     padding:
-                                                        MaterialStateProperty.all<
-                                                          EdgeInsets
-                                                        >(EdgeInsets.zero),
+                                                        MaterialStateProperty
+                                                            .all<EdgeInsets>(
+                                                                EdgeInsets
+                                                                    .zero),
                                                     foregroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Colors.white),
+                                                        MaterialStateProperty
+                                                            .all<Color>(
+                                                                Colors.white),
                                                     backgroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Color(0xFF2ECC71)),
-                                                    shape:
-                                                        MaterialStateProperty.all<
-                                                          RoundedRectangleBorder
-                                                        >(
-                                                          RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  5,
-                                                                ),
-                                                          ),
+                                                        MaterialStateProperty
+                                                            .all<Color>(Color(
+                                                                0xFF2ECC71)),
+                                                    shape: MaterialStateProperty
+                                                        .all<
+                                                            RoundedRectangleBorder>(
+                                                      RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(
+                                                          5,
                                                         ),
+                                                      ),
+                                                    ),
                                                   ),
                                                   child: Text('View Logs'),
                                                   onPressed: () {
@@ -526,34 +527,35 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                                   ],
                                                   borderRadius:
                                                       BorderRadius.circular(
-                                                        5,
-                                                      ), // Match button shape
+                                                    5,
+                                                  ), // Match button shape
                                                 ),
                                                 child: ElevatedButton(
                                                   style: ButtonStyle(
                                                     padding:
-                                                        MaterialStateProperty.all<
-                                                          EdgeInsets
-                                                        >(EdgeInsets.zero),
+                                                        MaterialStateProperty
+                                                            .all<EdgeInsets>(
+                                                                EdgeInsets
+                                                                    .zero),
                                                     foregroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Colors.white),
+                                                        MaterialStateProperty
+                                                            .all<Color>(
+                                                                Colors.white),
                                                     backgroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Color(0xFF2ECC71)),
-                                                    shape:
-                                                        MaterialStateProperty.all<
-                                                          RoundedRectangleBorder
-                                                        >(
-                                                          RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  5,
-                                                                ),
-                                                          ),
+                                                        MaterialStateProperty
+                                                            .all<Color>(Color(
+                                                                0xFF2ECC71)),
+                                                    shape: MaterialStateProperty
+                                                        .all<
+                                                            RoundedRectangleBorder>(
+                                                      RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(
+                                                          5,
                                                         ),
+                                                      ),
+                                                    ),
                                                   ),
                                                   child: Text('View History'),
                                                   onPressed: () {
@@ -614,34 +616,35 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                                   ],
                                                   borderRadius:
                                                       BorderRadius.circular(
-                                                        5,
-                                                      ), // Match button shape
+                                                    5,
+                                                  ), // Match button shape
                                                 ),
                                                 child: ElevatedButton(
                                                   style: ButtonStyle(
                                                     padding:
-                                                        MaterialStateProperty.all<
-                                                          EdgeInsets
-                                                        >(EdgeInsets.zero),
+                                                        MaterialStateProperty
+                                                            .all<EdgeInsets>(
+                                                                EdgeInsets
+                                                                    .zero),
                                                     foregroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Colors.white),
+                                                        MaterialStateProperty
+                                                            .all<Color>(
+                                                                Colors.white),
                                                     backgroundColor:
-                                                        MaterialStateProperty.all<
-                                                          Color
-                                                        >(Color(0xFF2ECC71)),
-                                                    shape:
-                                                        MaterialStateProperty.all<
-                                                          RoundedRectangleBorder
-                                                        >(
-                                                          RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  5,
-                                                                ),
-                                                          ),
+                                                        MaterialStateProperty
+                                                            .all<Color>(Color(
+                                                                0xFF2ECC71)),
+                                                    shape: MaterialStateProperty
+                                                        .all<
+                                                            RoundedRectangleBorder>(
+                                                      RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(
+                                                          5,
                                                         ),
+                                                      ),
+                                                    ),
                                                   ),
                                                   child: Text('View About'),
                                                   onPressed: () {
