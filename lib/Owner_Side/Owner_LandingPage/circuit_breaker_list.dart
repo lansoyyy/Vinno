@@ -64,10 +64,12 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
         final data = event.snapshot.value as Map<dynamic, dynamic>?;
 
         if (data == null) {
-          setState(() {
-            bracketList = [];
-            isLoading = false;
-          });
+          if (mounted) {
+            setState(() {
+              bracketList = [];
+              isLoading = false;
+            });
+          }
           return;
         }
 
@@ -80,11 +82,6 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
           final key = entry.key as String;
           final cbData = Map<String, dynamic>.from(entry.value as Map);
 
-          // Check if CB already exists in our local list (for ownership validation)
-          final existingCbIndex =
-              bracketList.indexWhere((cb) => cb['scbId'] == key);
-          final isAlreadyOwned = existingCbIndex != -1;
-
           // Only load circuit breakers owned by current user
           if (box.read('accountType') == 'Admin' ||
               box.read('accountType') == 'Staff') {
@@ -94,7 +91,64 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
               Map<String, dynamic> data =
                   userData.data() as Map<String, dynamic>;
 
-              if (cbData['ownerId'] == data['createdBy'] && !isAlreadyOwned) {
+              if (cbData['ownerId'] == data['createdBy']) {
+                // Check if this CB already exists in our list and update if needed
+                final existingIndex =
+                    loadedCBs.indexWhere((cb) => cb['scbId'] == key);
+                if (existingIndex == -1) {
+                  // Only add if not already in the list
+                  // Compute power using formula: Power = Voltage × Current
+                  final voltage = (cbData['voltage'] ?? 0).toDouble();
+                  final current = (cbData['current'] ?? 0).toDouble();
+                  final computedPower = voltage * current;
+
+                  // Get trip count for this circuit breaker
+                  final tripCount = await _getTripCount(key);
+
+                  loadedCBs.add({
+                    'scbId': key,
+                    'scbName': cbData['scbName'] ?? 'Unknown',
+                    'isOn': cbData['isOn'] ?? false,
+                    'circuitBreakerRating': cbData['circuitBreakerRating'] ?? 0,
+                    'voltage': voltage,
+                    'current': current,
+                    'temperature': cbData['temperature'] ?? 0,
+                    'power':
+                        computedPower, // Use computed power instead of stored value
+                    'energy': cbData['energy'] ?? 0,
+                    'latitude': cbData['latitude'] ?? 0.0,
+                    'longitude': cbData['longitude'] ?? 0.0,
+                    'wifiName': cbData['wifiName'] ?? '',
+                    'tripCount': tripCount, // Add trip count
+                  });
+                } else {
+                  // Update existing CB data instead of replacing the whole list
+                  loadedCBs[existingIndex] = {
+                    ...loadedCBs[existingIndex],
+                    'scbName': cbData['scbName'] ??
+                        loadedCBs[existingIndex]['scbName'],
+                    'isOn': cbData['isOn'] ?? loadedCBs[existingIndex]['isOn'],
+                    'voltage': (cbData['voltage'] ?? 0).toDouble(),
+                    'current': (cbData['current'] ?? 0).toDouble(),
+                    'temperature': cbData['temperature'] ??
+                        loadedCBs[existingIndex]['temperature'],
+                    'power': (cbData['voltage'] ?? 0).toDouble() *
+                        (cbData['current'] ?? 0).toDouble(),
+                    'energy':
+                        cbData['energy'] ?? loadedCBs[existingIndex]['energy'],
+                    'wifiName': cbData['wifiName'] ??
+                        loadedCBs[existingIndex]['wifiName'],
+                  };
+                }
+              }
+            }
+          } else {
+            if (cbData['ownerId'] == currentUserId) {
+              // Check if this CB already exists in our list and update if needed
+              final existingIndex =
+                  loadedCBs.indexWhere((cb) => cb['scbId'] == key);
+              if (existingIndex == -1) {
+                // Only add if not already in the list
                 // Compute power using formula: Power = Voltage × Current
                 final voltage = (cbData['voltage'] ?? 0).toDouble();
                 final current = (cbData['current'] ?? 0).toDouble();
@@ -119,53 +173,45 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                   'wifiName': cbData['wifiName'] ?? '',
                   'tripCount': tripCount, // Add trip count
                 });
+              } else {
+                // Update existing CB data instead of replacing the whole list
+                loadedCBs[existingIndex] = {
+                  ...loadedCBs[existingIndex],
+                  'scbName':
+                      cbData['scbName'] ?? loadedCBs[existingIndex]['scbName'],
+                  'isOn': cbData['isOn'] ?? loadedCBs[existingIndex]['isOn'],
+                  'voltage': (cbData['voltage'] ?? 0).toDouble(),
+                  'current': (cbData['current'] ?? 0).toDouble(),
+                  'temperature': cbData['temperature'] ??
+                      loadedCBs[existingIndex]['temperature'],
+                  'power': (cbData['voltage'] ?? 0).toDouble() *
+                      (cbData['current'] ?? 0).toDouble(),
+                  'energy':
+                      cbData['energy'] ?? loadedCBs[existingIndex]['energy'],
+                  'wifiName': cbData['wifiName'] ??
+                      loadedCBs[existingIndex]['wifiName'],
+                };
               }
-            }
-          } else {
-            if (cbData['ownerId'] == currentUserId && !isAlreadyOwned) {
-              // Compute power using formula: Power = Voltage × Current
-              final voltage = (cbData['voltage'] ?? 0).toDouble();
-              final current = (cbData['current'] ?? 0).toDouble();
-              final computedPower = voltage * current;
-
-              // Get trip count for this circuit breaker
-              final tripCount = await _getTripCount(key);
-
-              loadedCBs.add({
-                'scbId': key,
-                'scbName': cbData['scbName'] ?? 'Unknown',
-                'isOn': cbData['isOn'] ?? false,
-                'circuitBreakerRating': cbData['circuitBreakerRating'] ?? 0,
-                'voltage': voltage,
-                'current': current,
-                'temperature': cbData['temperature'] ?? 0,
-                'power':
-                    computedPower, // Use computed power instead of stored value
-                'energy': cbData['energy'] ?? 0,
-                'latitude': cbData['latitude'] ?? 0.0,
-                'longitude': cbData['longitude'] ?? 0.0,
-                'wifiName': cbData['wifiName'] ?? '',
-                'tripCount': tripCount, // Add trip count
-              });
             }
           }
         }
 
-        setState(() {
-          bracketList = loadedCBs;
-          isLoading = false;
-        });
+        // Only update state if the widget is still mounted and the list has changed
+        if (mounted) {
+          setState(() {
+            bracketList = loadedCBs;
+            isLoading = false;
+          });
+        }
       });
     } catch (e) {
       print('Error fetching circuit breakers: $e');
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
-
-    setState(() {
-      isLoading = false;
-    });
   }
 
   // Switch Changed - Update Firebase
@@ -405,7 +451,9 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
     }
 
     try {
-      // Update in Firebase
+      // Update in Firebase - now we only store the WiFi name
+      // The password is handled by the WiFi change dialog and not stored in Firebase
+      // for security reasons
       await _dbRef
           .child('circuitBreakers')
           .child(scbId)
@@ -611,484 +659,481 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
     print(box.read('accountType'));
     return Scaffold(
       backgroundColor: Color(0xFFFFFFFF),
-      body: SingleChildScrollView(
-        child: Container(
-          height: MediaQuery.of(context).size.height,
-          child: Stack(
+      body: Stack(
+        children: [
+          // Main content with proper constraints
+          Column(
             children: [
-              Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      left: 30,
-                      top: 50,
-                      right: 30,
-                      bottom: 30,
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: 30,
+                  top: 50,
+                  right: 30,
+                  bottom: 30,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Settings
+                    if (!isEditMode)
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pushNamed(context, '/settingspage');
+                        },
+                        child: Icon(
+                          Icons.settings,
+                          size: 30,
+                          color: Color(0xFF2ECC71),
+                        ),
+                      ),
+
+                    if (isEditMode)
+                      Row(
+                        children: [
+                          Text(
+                            "Edit Mode  |  ",
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+
+                    Text(
+                      isEditMode ? "Edit Breakers" : "Circuit Breakers",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Settings
-                        if (!isEditMode)
+
+                    // Edit Bracket Button
+                    if (!isEditMode)
+                      Visibility(
+                        visible: box.read('accountType') != 'Staff',
+                        child: GestureDetector(
+                          onTap: () => _showEditConfirmationDialog(),
+                          child: Icon(Icons.edit, size: 30),
+                        ),
+                      ),
+
+                    // Delete Bracket/s Button
+                    if (isEditMode)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Select All
                           GestureDetector(
                             onTap: () {
-                              Navigator.pushNamed(context, '/settingspage');
+                              setState(() {
+                                if (selectedBracketNames.length <
+                                    bracketList.length) {
+                                  // Select all
+                                  selectedBracketNames = bracketList
+                                      .map<String>(
+                                        (item) => item['scbName'] as String,
+                                      )
+                                      .toSet();
+                                } else {
+                                  // Deselect all
+                                  selectedBracketNames.clear();
+                                }
+                              });
                             },
-                            child: Icon(
-                              Icons.settings,
-                              size: 30,
-                              color: Color(0xFF2ECC71),
-                            ),
-                          ),
-
-                        if (isEditMode)
-                          Row(
-                            children: [
-                              Text(
-                                "Edit Mode  |  ",
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-
-                        Text(
-                          isEditMode ? "Edit Breakers" : "Circuit Breakers",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-
-                        // Edit Bracket Button
-                        if (!isEditMode)
-                          Visibility(
-                            visible: box.read('accountType') != 'Staff',
-                            child: GestureDetector(
-                              onTap: () => _showEditConfirmationDialog(),
-                              child: Icon(Icons.edit, size: 30),
-                            ),
-                          ),
-
-                        // Delete Bracket/s Button
-                        if (isEditMode)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Select All
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    if (selectedBracketNames.length <
-                                        bracketList.length) {
-                                      // Select all
-                                      selectedBracketNames = bracketList
-                                          .map<String>(
-                                            (item) => item['scbName'] as String,
-                                          )
-                                          .toSet();
-                                    } else {
-                                      // Deselect all
-                                      selectedBracketNames.clear();
-                                    }
-                                  });
-                                },
-                                child: Column(
-                                  children: [
-                                    Icon(
-                                      selectedBracketNames.length ==
-                                              bracketList.length
-                                          ? Icons.check_box_rounded
-                                          : Icons
-                                              .check_box_outline_blank_rounded,
-                                      size: 30,
-                                      color: selectedBracketNames.length ==
-                                              bracketList.length
-                                          ? Colors.black.withOpacity(0.7)
-                                          : Colors.black.withOpacity(0.5),
-                                    ),
-                                    Text(
-                                      'All',
-                                      style: TextStyle(
-                                        color: selectedBracketNames.length ==
-                                                bracketList.length
-                                            ? Colors.black
-                                            : Colors.black.withOpacity(0.5),
-                                        fontWeight:
-                                            selectedBracketNames.length ==
-                                                    bracketList.length
-                                                ? FontWeight.bold
-                                                : FontWeight.normal,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              SizedBox(width: 10),
-
-                              // Delete Button
-                              GestureDetector(
-                                onTap: selectedBracketNames.isEmpty
-                                    ? null
-                                    : () => _showDeleteConfirmation(),
-                                child: Icon(
-                                  Icons.delete_rounded,
+                            child: Column(
+                              children: [
+                                Icon(
+                                  selectedBracketNames.length ==
+                                          bracketList.length
+                                      ? Icons.check_box_rounded
+                                      : Icons.check_box_outline_blank_rounded,
                                   size: 30,
-                                  color: selectedBracketNames.isEmpty
-                                      ? Colors.black.withOpacity(0.3)
-                                      : Colors.red,
+                                  color: selectedBracketNames.length ==
+                                          bracketList.length
+                                      ? Colors.black.withOpacity(0.7)
+                                      : Colors.black.withOpacity(0.5),
                                 ),
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  // Statistics
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => StatisticsMenu(),
-                        ),
-                      );
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.only(
-                        top: 10,
-                        left: 30,
-                        right: 30,
-                        bottom: 10,
-                      ),
-                      child: Container(
-                        child: Padding(
-                          padding: const EdgeInsets.all(15),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.data_thresholding_outlined,
-                                color: Colors.white,
-                                size: 45,
-                              ),
-
-                              SizedBox(width: 10),
-
-                              //Task Name
-                              Text(
-                                "Statistics",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                                Text(
+                                  'All',
+                                  style: TextStyle(
+                                    color: selectedBracketNames.length ==
+                                            bracketList.length
+                                        ? Colors.black
+                                        : Colors.black.withOpacity(0.5),
+                                    fontWeight: selectedBracketNames.length ==
+                                            bracketList.length
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        decoration: BoxDecoration(
-                          color: Color(0xFF2ECC71),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(
-                                0.25,
-                              ), // Shadow color
-                              offset: Offset(0, 4), // Shadow position
-                              blurRadius: 4, // Blur effect
-                              spreadRadius: 0, // Spread effect
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                          ),
 
-                  // Lists of Brackets
-                  bracketList.isEmpty
-                      // No Brackets
-                      ? isEditMode
-                          ? Text('')
-                          : Center(
-                              child: Container(
-                                height:
-                                    MediaQuery.of(context).size.height * 0.5,
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      'No brackets available.',
-                                      style: TextStyle(fontSize: 20),
-                                    ),
-                                    SizedBox(height: 20),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 50,
-                                      ),
-                                      child: Text(
-                                        'Tap the plus ‘ + ‘ icon to start adding a new Smart Bracket ',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(fontSize: 20),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            )
-                      // There are Brackets
-                      : isLoading
-                          ? Center(
-                              child: CircularProgressIndicator(
-                                color: Color(0xFF2ECC71),
-                              ),
-                            )
-                          : Expanded(
-                              child: ListView.builder(
-                                padding: EdgeInsets.only(top: 0, bottom: 120),
-                                itemCount: bracketList.length,
-                                itemBuilder: (context, index) {
-                                  final cb = bracketList[index];
-                                  final scbId = cb['scbId'];
+                          SizedBox(width: 10),
 
-                                  // Initialize controllers if not already done
-                                  if (!_nameControllers.containsKey(scbId)) {
-                                    _nameControllers[scbId] =
-                                        TextEditingController(
-                                            text: cb['scbName']);
-                                  }
-                                  if (!_wifiControllers.containsKey(scbId)) {
-                                    _wifiControllers[scbId] =
-                                        TextEditingController(
-                                            text: cb['wifiName'] ?? '');
-                                  }
-
-                                  return CircuitBreakerTile(
-                                    bracketName: cb['scbName'],
-                                    turnOn: cb['isOn'],
-                                    onChanged: (value) =>
-                                        switchChanged(value, index),
-                                    isEditMode: isEditMode,
-                                    isSelected: selectedBracketNames.contains(
-                                      cb['scbName'],
-                                    ),
-                                    onCheckboxChanged: (checked) {
-                                      setState(() {
-                                        final name = cb['scbName'];
-                                        if (checked == true) {
-                                          selectedBracketNames.add(name);
-                                        } else {
-                                          selectedBracketNames.remove(name);
-                                        }
-                                      });
-                                    },
-                                    cbData: cb, // Pass complete CB data
-                                    nameController: isEditMode
-                                        ? _nameControllers[scbId]
-                                        : null,
-                                    wifiController: isEditMode
-                                        ? _wifiControllers[scbId]
-                                        : null,
-                                    onSaveName: isEditMode
-                                        ? () => _saveCircuitBreakerName(
-                                            scbId, index)
-                                        : null,
-                                    onSaveWifi: isEditMode
-                                        ? () => _saveCircuitBreakerWifi(
-                                            scbId, index)
-                                        : null,
-                                  );
-                                },
-                              ),
+                          // Delete Button
+                          GestureDetector(
+                            onTap: selectedBracketNames.isEmpty
+                                ? null
+                                : () => _showDeleteConfirmation(),
+                            child: Icon(
+                              Icons.delete_rounded,
+                              size: 30,
+                              color: selectedBracketNames.isEmpty
+                                  ? Colors.black.withOpacity(0.3)
+                                  : Colors.red,
                             ),
-                ],
-              ),
-              if (isEditMode)
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(vertical: 30),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.black.withOpacity(0.6),
-                          Colors.white.withOpacity(0.5),
+                          ),
                         ],
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
+                      ),
+                  ],
+                ),
+              ),
+
+              // Statistics
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => StatisticsMenu(),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    top: 10,
+                    left: 30,
+                    right: 30,
+                    bottom: 10,
+                  ),
+                  child: Container(
+                    child: Padding(
+                      padding: const EdgeInsets.all(15),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.data_thresholding_outlined,
+                            color: Colors.white,
+                            size: 45,
+                          ),
+
+                          SizedBox(width: 10),
+
+                          //Task Name
+                          Text(
+                            "Statistics",
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        // Cancel Button
-                        Container(
-                          width: 151,
-                          height: 46,
-                          decoration: BoxDecoration(
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.25),
-                                offset: Offset(0, 4), // x, y offset
-                                blurRadius: 2,
-                                spreadRadius: 0,
-                              ),
-                            ],
-                            borderRadius: BorderRadius.circular(50),
-                          ),
-                          child: ElevatedButton(
-                            style: ButtonStyle(
-                              padding: MaterialStateProperty.all<EdgeInsets>(
-                                EdgeInsets.zero,
-                              ),
-                              foregroundColor: MaterialStateProperty.all<Color>(
-                                Colors.black,
-                              ),
-                              backgroundColor: MaterialStateProperty.all<Color>(
-                                Colors.white,
-                              ),
-                              shape: MaterialStateProperty.all<
-                                  RoundedRectangleBorder>(
-                                RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(50),
-                                ),
-                              ),
-                            ),
-                            child: Text('Cancel', textAlign: TextAlign.center),
-                            onPressed: () {
-                              _cancelEditMode();
-                            },
-                          ),
-                        ),
-
-                        // Undo Button
-                        Container(
-                          width: 46,
-                          height: 46,
-                          decoration: BoxDecoration(
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.25),
-                                offset: Offset(0, 4), // x, y offset
-                                blurRadius: 2,
-                                spreadRadius: 0,
-                              ),
-                            ],
-                            borderRadius: BorderRadius.circular(50),
-                          ),
-                          child: ElevatedButton(
-                            style: ButtonStyle(
-                              padding: MaterialStateProperty.all<EdgeInsets>(
-                                EdgeInsets.zero,
-                              ),
-                              foregroundColor: MaterialStateProperty.all<Color>(
-                                Colors.black,
-                              ),
-                              backgroundColor: MaterialStateProperty.all<Color>(
-                                Colors.white,
-                              ),
-                              shape: MaterialStateProperty.all<
-                                  RoundedRectangleBorder>(
-                                RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(50),
-                                ),
-                              ),
-                            ),
-                            child: Icon(Icons.undo, size: 20),
-                            onPressed: _canUndo ? _undoChanges : null,
-                          ),
-                        ),
-
-                        // Redo Button
-                        Container(
-                          width: 46,
-                          height: 46,
-                          decoration: BoxDecoration(
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.25),
-                                offset: Offset(0, 4), // x, y offset
-                                blurRadius: 2,
-                                spreadRadius: 0,
-                              ),
-                            ],
-                            borderRadius: BorderRadius.circular(50),
-                          ),
-                          child: ElevatedButton(
-                            style: ButtonStyle(
-                              padding: MaterialStateProperty.all<EdgeInsets>(
-                                EdgeInsets.zero,
-                              ),
-                              foregroundColor: MaterialStateProperty.all<Color>(
-                                Colors.black,
-                              ),
-                              backgroundColor: MaterialStateProperty.all<Color>(
-                                Colors.white,
-                              ),
-                              shape: MaterialStateProperty.all<
-                                  RoundedRectangleBorder>(
-                                RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(50),
-                                ),
-                              ),
-                            ),
-                            child: Icon(Icons.redo, size: 20),
-                            onPressed: _canRedo ? _redoChanges : null,
-                          ),
-                        ),
-
-                        // Save Button
-                        Container(
-                          width: 151,
-                          height: 46,
-                          decoration: BoxDecoration(
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.25),
-                                offset: Offset(0, 4), // x, y offset
-                                blurRadius: 2,
-                                spreadRadius: 0,
-                              ),
-                            ],
-                            borderRadius: BorderRadius.circular(50),
-                          ),
-                          child: ElevatedButton(
-                            style: ButtonStyle(
-                              padding: MaterialStateProperty.all<EdgeInsets>(
-                                EdgeInsets.zero,
-                              ),
-                              foregroundColor: MaterialStateProperty.all<Color>(
-                                Colors.black,
-                              ),
-                              backgroundColor: MaterialStateProperty.all<Color>(
-                                Colors.white,
-                              ),
-                              shape: MaterialStateProperty.all<
-                                  RoundedRectangleBorder>(
-                                RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(50),
-                                ),
-                              ),
-                            ),
-                            child: Text('Done', textAlign: TextAlign.center),
-                            onPressed: () {
-                              _saveAllChanges();
-                            },
-                          ),
+                    decoration: BoxDecoration(
+                      color: Color(0xFF2ECC71),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(
+                            0.25,
+                          ), // Shadow color
+                          offset: Offset(0, 4), // Shadow position
+                          blurRadius: 4, // Blur effect
+                          spreadRadius: 0, // Spread effect
                         ),
                       ],
                     ),
                   ),
                 ),
-              if (!isEditMode)
-                // NAVIGATION ---------------------------------------------------------------------------------------------
-                NavHome(circuitBreakers: bracketList),
+              ),
+
+              // Lists of Brackets
+              bracketList.isEmpty
+                  // No Brackets
+                  ? isEditMode
+                      ? Text('')
+                      : Center(
+                          child: Container(
+                            height: MediaQuery.of(context).size.height * 0.5,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'No brackets available.',
+                                  style: TextStyle(fontSize: 20),
+                                ),
+                                SizedBox(height: 20),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 50,
+                                  ),
+                                  child: Text(
+                                    'Tap the plus ‘ + ‘ icon to start adding a new Smart Bracket ',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 20),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                  // There are Brackets
+                  : isLoading
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF2ECC71),
+                          ),
+                        )
+                      : Expanded(
+                          child: ListView.builder(
+                            // Use AutomaticKeepAliveClientMixin to maintain state
+                            addAutomaticKeepAlives: true,
+                            addRepaintBoundaries: true,
+                            addSemanticIndexes: true,
+                            cacheExtent:
+                                500, // Increase cache extent for better performance
+                            padding: EdgeInsets.only(top: 0, bottom: 120),
+                            itemCount: bracketList.length,
+                            itemBuilder: (context, index) {
+                              final cb = bracketList[index];
+                              final scbId = cb['scbId'];
+
+                              // Initialize controllers if not already done
+                              if (!_nameControllers.containsKey(scbId)) {
+                                _nameControllers[scbId] =
+                                    TextEditingController(text: cb['scbName']);
+                              }
+                              if (!_wifiControllers.containsKey(scbId)) {
+                                _wifiControllers[scbId] = TextEditingController(
+                                    text: cb['wifiName'] ?? '');
+                              }
+
+                              return CircuitBreakerTile(
+                                key: ValueKey(
+                                    'cb_${cb['scbId']}'), // Add key for proper widget identification
+                                bracketName: cb['scbName'],
+                                turnOn: cb['isOn'],
+                                onChanged: (value) =>
+                                    switchChanged(value, index),
+                                isEditMode: isEditMode,
+                                isSelected: selectedBracketNames.contains(
+                                  cb['scbName'],
+                                ),
+                                onCheckboxChanged: (checked) {
+                                  setState(() {
+                                    final name = cb['scbName'];
+                                    if (checked == true) {
+                                      selectedBracketNames.add(name);
+                                    } else {
+                                      selectedBracketNames.remove(name);
+                                    }
+                                  });
+                                },
+                                cbData: cb, // Pass complete CB data
+                                nameController:
+                                    isEditMode ? _nameControllers[scbId] : null,
+                                wifiController:
+                                    isEditMode ? _wifiControllers[scbId] : null,
+                                onSaveName: isEditMode
+                                    ? () =>
+                                        _saveCircuitBreakerName(scbId, index)
+                                    : null,
+                                onSaveWifi: isEditMode
+                                    ? () =>
+                                        _saveCircuitBreakerWifi(scbId, index)
+                                    : null,
+                              );
+                            },
+                          ),
+                        ),
             ],
           ),
-        ),
+          if (isEditMode)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: 30),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withOpacity(0.6),
+                      Colors.white.withOpacity(0.5),
+                    ],
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Cancel Button
+                    Container(
+                      width: 151,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            offset: Offset(0, 4), // x, y offset
+                            blurRadius: 2,
+                            spreadRadius: 0,
+                          ),
+                        ],
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          padding: MaterialStateProperty.all<EdgeInsets>(
+                            EdgeInsets.zero,
+                          ),
+                          foregroundColor: MaterialStateProperty.all<Color>(
+                            Colors.black,
+                          ),
+                          backgroundColor: MaterialStateProperty.all<Color>(
+                            Colors.white,
+                          ),
+                          shape:
+                              MaterialStateProperty.all<RoundedRectangleBorder>(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(50),
+                            ),
+                          ),
+                        ),
+                        child: Text('Cancel', textAlign: TextAlign.center),
+                        onPressed: () {
+                          _cancelEditMode();
+                        },
+                      ),
+                    ),
+
+                    // Undo Button
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            offset: Offset(0, 4), // x, y offset
+                            blurRadius: 2,
+                            spreadRadius: 0,
+                          ),
+                        ],
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          padding: MaterialStateProperty.all<EdgeInsets>(
+                            EdgeInsets.zero,
+                          ),
+                          foregroundColor: MaterialStateProperty.all<Color>(
+                            Colors.black,
+                          ),
+                          backgroundColor: MaterialStateProperty.all<Color>(
+                            Colors.white,
+                          ),
+                          shape:
+                              MaterialStateProperty.all<RoundedRectangleBorder>(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(50),
+                            ),
+                          ),
+                        ),
+                        child: Icon(Icons.undo, size: 20),
+                        onPressed: _canUndo ? _undoChanges : null,
+                      ),
+                    ),
+
+                    // Redo Button
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            offset: Offset(0, 4), // x, y offset
+                            blurRadius: 2,
+                            spreadRadius: 0,
+                          ),
+                        ],
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          padding: MaterialStateProperty.all<EdgeInsets>(
+                            EdgeInsets.zero,
+                          ),
+                          foregroundColor: MaterialStateProperty.all<Color>(
+                            Colors.black,
+                          ),
+                          backgroundColor: MaterialStateProperty.all<Color>(
+                            Colors.white,
+                          ),
+                          shape:
+                              MaterialStateProperty.all<RoundedRectangleBorder>(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(50),
+                            ),
+                          ),
+                        ),
+                        child: Icon(Icons.redo, size: 20),
+                        onPressed: _canRedo ? _redoChanges : null,
+                      ),
+                    ),
+
+                    // Save Button
+                    Container(
+                      width: 151,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            offset: Offset(0, 4), // x, y offset
+                            blurRadius: 2,
+                            spreadRadius: 0,
+                          ),
+                        ],
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          padding: MaterialStateProperty.all<EdgeInsets>(
+                            EdgeInsets.zero,
+                          ),
+                          foregroundColor: MaterialStateProperty.all<Color>(
+                            Colors.black,
+                          ),
+                          backgroundColor: MaterialStateProperty.all<Color>(
+                            Colors.white,
+                          ),
+                          shape:
+                              MaterialStateProperty.all<RoundedRectangleBorder>(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(50),
+                            ),
+                          ),
+                        ),
+                        child: Text('Done', textAlign: TextAlign.center),
+                        onPressed: () {
+                          _saveAllChanges();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (!isEditMode)
+            // NAVIGATION ---------------------------------------------------------------------------------------------
+            NavHome(circuitBreakers: bracketList),
+        ],
       ),
     );
   }

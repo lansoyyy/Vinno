@@ -150,7 +150,7 @@ class _NavHomeState extends State<NavHome> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Threshold Monitor Overlay
+        // Threshold Monitor Overlay - Positioned at top with proper constraints
         StreamBuilder<List<ThresholdViolation>>(
           stream: _thresholdService.monitorThresholds(),
           builder: (context, snapshot) {
@@ -160,7 +160,7 @@ class _NavHomeState extends State<NavHome> {
 
             final violations = snapshot.data!;
 
-            // Show alert banner at top
+            // Show alert banner at top with limited height to prevent covering content
             return Positioned(
               top: 0,
               left: 0,
@@ -221,7 +221,8 @@ class _NavHomeState extends State<NavHome> {
                         ),
                       ),
                       Container(
-                        constraints: BoxConstraints(maxHeight: 200),
+                        constraints: BoxConstraints(
+                            maxHeight: 150), // Reduced max height
                         child: ListView.builder(
                           shrinkWrap: true,
                           padding: EdgeInsets.all(8),
