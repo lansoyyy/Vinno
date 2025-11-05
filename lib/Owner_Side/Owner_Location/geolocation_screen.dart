@@ -256,60 +256,73 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
       );
     }
 
-    // Add user markers
-    for (var user in _users) {
-      final markerId = MarkerId(user['id']);
+    // Add user markers only if location sharing is active
+    if (!shareLoc) {
+      for (var user in _users) {
+        final markerId = MarkerId(user['id']);
 
-      // Determine marker color based on user type
-      double markerHue;
-      Color circleColor;
+        // Check if user location is pinned
+        bool isUserLocationPinned = false;
+        if (_currentUserId != null) {
+          for (var u in _users) {
+            if (u['id'] == _currentUserId) {
+              isUserLocationPinned = box.read('isPinnedLocation') ?? false;
+              break;
+            }
+          }
+        }
 
-      switch (user['type']) {
-        case 'admin':
-          markerHue = BitmapDescriptor.hueBlue;
-          circleColor = Colors.blue;
-          break;
-        case 'staff':
-          markerHue = BitmapDescriptor.hueGreen;
-          circleColor = Colors.green;
-          break;
-        case 'owner':
-        default:
-          markerHue = BitmapDescriptor.hueOrange;
-          circleColor = Colors.orange;
-          break;
-      }
+        // Determine marker color based on user type
+        double markerHue;
+        Color circleColor;
 
-      markers.add(
-        Marker(
-          markerId: markerId,
-          position: user['position'],
-          icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
-          infoWindow: InfoWindow(
-            title: user['name'],
-            snippet: user['type'].toString().toUpperCase(),
+        switch (user['type']) {
+          case 'admin':
+            markerHue = BitmapDescriptor.hueBlue;
+            circleColor = Colors.blue;
+            break;
+          case 'staff':
+            markerHue = BitmapDescriptor.hueGreen;
+            circleColor = Colors.green;
+            break;
+          case 'owner':
+          default:
+            markerHue = BitmapDescriptor.hueOrange;
+            circleColor = Colors.orange;
+            break;
+        }
+
+        markers.add(
+          Marker(
+            markerId: markerId,
+            position: user['position'],
+            icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
+            infoWindow: InfoWindow(
+              title: user['name'],
+              snippet: user['type'].toString().toUpperCase(),
+            ),
+            onTap: () {
+              setState(() {
+                selectedMobile = user['mobile'];
+                _showMarkerDetails = true;
+                _selectedMarkerId = user['id'];
+              });
+            },
           ),
-          onTap: () {
-            setState(() {
-              selectedMobile = user['mobile'];
-              _showMarkerDetails = true;
-              _selectedMarkerId = user['id'];
-            });
-          },
-        ),
-      );
+        );
 
-      // Add circle around user
-      circles.add(
-        Circle(
-          circleId: CircleId('circle_${user['id']}'),
-          center: user['position'],
-          radius: 100, // 100 meters radius
-          fillColor: circleColor.withOpacity(0.2),
-          strokeColor: circleColor,
-          strokeWidth: 2,
-        ),
-      );
+        // Add circle around user
+        circles.add(
+          Circle(
+            circleId: CircleId('circle_${user['id']}'),
+            center: user['position'],
+            radius: 100, // 100 meters radius
+            fillColor: circleColor.withOpacity(0.2),
+            strokeColor: circleColor,
+            strokeWidth: 2,
+          ),
+        );
+      }
     }
 
     setState(() {
@@ -409,7 +422,6 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     setState(() {
       shareLoc = true;
     });
-    // TODO: Implement share location functionality
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Sharing live location...')),
     );
@@ -441,6 +453,8 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
             'latitude': position.latitude,
             'longitude': position.longitude,
             'lastLocationUpdate': FieldValue.serverTimestamp(),
+            'isSharingLocation':
+                true, // Add flag to indicate location is being shared
           });
         }
       } catch (e) {
@@ -449,7 +463,47 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     });
   }
 
+  Future<void> _stopSharingLocation() async {
+    setState(() {
+      shareLoc = false;
+    });
+    timer?.cancel(); // Stop the periodic location updates
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Stopped sharing location')),
+    );
+
+    // Update user's location sharing status in Firestore
+    try {
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        String userType = box.read('accountType') == 'Staff'
+            ? 'staff'
+            : box.read('accountType') == 'Owner'
+                ? 'owners'
+                : 'admins';
+
+        await FirebaseFirestore.instance
+            .collection(userType)
+            .doc(currentUser.uid)
+            .update({'isSharingLocation': false});
+      }
+    } catch (e) {
+      print('Error stopping location sharing: $e');
+    }
+  }
+
   void _showOptionsMenu() {
+    // Check if current user's location is pinned
+    bool isCurrentUserLocationPinned = false;
+    if (_currentUserId != null) {
+      for (var user in _users) {
+        if (user['id'] == _currentUserId) {
+          isCurrentUserLocationPinned = box.read('isPinnedLocation') ?? false;
+          break;
+        }
+      }
+    }
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -463,15 +517,19 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.edit_location, color: Colors.green),
-                title: const Text('Edit'),
+                title: const Text('Edit Location'),
+                enabled:
+                    !isCurrentUserLocationPinned, // Disable if location is pinned
                 onTap: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => PinLocationScreen(
-                              circuitBreakers: widget.circuitBreakers,
-                            )),
-                  );
+                  if (!isCurrentUserLocationPinned) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => PinLocationScreen(
+                                circuitBreakers: widget.circuitBreakers,
+                              )),
+                    );
+                  }
                 },
               ),
             ],
@@ -580,10 +638,12 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
                   left: 30,
                   right: 30,
                   child: ElevatedButton.icon(
-                    onPressed: _shareLocation,
+                    onPressed: shareLoc ? _stopSharingLocation : _shareLocation,
                     icon: const Icon(Icons.location_on, color: Colors.white),
-                    label: const Text(
-                      'Share Live Location',
+                    label: Text(
+                      shareLoc
+                          ? 'Stop Sharing Location'
+                          : 'Share Live Location',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,

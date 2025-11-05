@@ -161,6 +161,8 @@ class _PinLocationScreenState extends State<PinLocationScreen> {
           break;
       }
       box.write('hasPinned', true);
+      box.write(
+          'isPinnedLocation', true); // Add flag to indicate location is pinned
       for (int i = 0; i < widget.circuitBreakers!.length; i++) {
         await _dbRef
             .child('circuitBreakers')
