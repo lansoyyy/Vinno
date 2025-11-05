@@ -7,6 +7,7 @@ import 'package:smart_cb_1/Owner_Side/Owner_Thresholds/temperature_option.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:smart_cb_1/services/threshold_monitor_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 class VoltageSettingsPage extends StatefulWidget {
   const VoltageSettingsPage({super.key});
@@ -21,7 +22,6 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
   Map<String, dynamic>? cbData;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   bool isSaving = false;
-  String? userRole;
 
   // CB Computation Constants
   static const double STANDARD_VOLTAGE = 220.0; // Philippines standard
@@ -46,34 +46,8 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
   @override
   void initState() {
     super.initState();
-    _getUserRole();
-    // Load existing thresholds will be done after getting cbData
-  }
 
-  Future<void> _getUserRole() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      // Check user role from Firestore
-      final userData =
-          await _dbRef.parent?.child('owners').child(user.uid).get();
-      if (userData?.exists == true) {
-        setState(() {
-          userRole = 'Owner';
-        });
-      } else {
-        final adminData =
-            await _dbRef.parent?.child('admins').child(user.uid).get();
-        if (adminData?.exists == true) {
-          setState(() {
-            userRole = 'Admin';
-          });
-        } else {
-          setState(() {
-            userRole = 'Staff';
-          });
-        }
-      }
-    }
+    // Load existing thresholds will be done after getting cbData
   }
 
   Future<void> _loadExistingThresholds() async {
@@ -305,7 +279,7 @@ class _VoltageSettingsPageState extends State<VoltageSettingsPage> {
     }
 
     // Check if user is Staff and deny access
-    if (userRole == 'Staff') {
+    if (box.read('accountType') == 'Staff') {
       return Scaffold(
         backgroundColor: Color(0xFFFFFFFF),
         body: Center(
