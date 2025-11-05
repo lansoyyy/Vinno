@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_CircuitBreakerOption/bracket-on-off.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Navigation/navigation_page.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class BracketOptionPage extends StatefulWidget {
   final Map<String, dynamic>? cbData;
@@ -16,9 +18,11 @@ class BracketOptionPage extends StatefulWidget {
 class _BracketOptionPageState extends State<BracketOptionPage> {
   bool click = true;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool isToggling = false;
   StreamSubscription<DatabaseEvent>? _servoStatusSubscription;
   StreamSubscription<DatabaseEvent>? _cbDataSubscription;
+  int? tripCount;
 
   @override
   void initState() {
@@ -29,6 +33,8 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
     }
     // Start listening to real-time CB data updates
     _startRealtimeDataListener();
+    // Load trip count
+    _loadTripCount();
   }
 
   void _startRealtimeDataListener() {
@@ -51,9 +57,38 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
 
           // Update the click state based on real-time isOn value
           click = !(updatedData['isOn'] ?? true);
+
+          // Recompute power when voltage or current changes
+          final voltage = (updatedData['voltage'] ?? 0).toDouble();
+          final current = (updatedData['current'] ?? 0).toDouble();
+          widget.cbData!['power'] = voltage * current;
         });
       }
     });
+  }
+
+  // Load trip count for this circuit breaker
+  Future<void> _loadTripCount() async {
+    if (widget.cbData == null) return;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final snapshot = await _firestore
+          .collection('tripHistory')
+          .where('userId', isEqualTo: user.uid)
+          .where('scbId', isEqualTo: widget.cbData!['scbId'])
+          .get();
+
+      if (mounted) {
+        setState(() {
+          tripCount = snapshot.docs.length;
+        });
+      }
+    } catch (e) {
+      print('Error loading trip count: $e');
+    }
   }
 
   @override
@@ -503,7 +538,7 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                             Row(
                                               children: [
                                                 Text(
-                                                  "${widget.cbData?['power'] ?? 0}",
+                                                  "${(widget.cbData?['power'] ?? 0).toStringAsFixed(1)}",
                                                   style: TextStyle(
                                                     fontSize: 30,
                                                     fontWeight: FontWeight.w500,
@@ -733,12 +768,26 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                               size: 30,
                                             ),
                                             SizedBox(width: 5),
-                                            Text(
-                                              "Trip History",
-                                              style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w500,
-                                              ),
+                                            Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  "Trip History",
+                                                  style: TextStyle(
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  "Total Trips: ${tripCount ?? 0}",
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Colors.grey[600],
+                                                    fontWeight: FontWeight.w400,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ],
                                         ),

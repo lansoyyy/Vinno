@@ -1,14 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Navigation/navigation_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class About extends StatelessWidget {
+class About extends StatefulWidget {
   const About({super.key});
+
+  @override
+  State<About> createState() => _AboutState();
+}
+
+class _AboutState extends State<About> {
+  int? tripCount;
+
+  @override
+  void initState() {
+    super.initState();
+    // Delay trip count loading until after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadTripCount();
+    });
+  }
+
+  // Load trip count for this circuit breaker
+  Future<void> _loadTripCount() async {
+    final Map<String, dynamic>? cbData =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+    if (cbData == null) return;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('tripHistory')
+          .where('userId', isEqualTo: user.uid)
+          .where('scbId', isEqualTo: cbData['scbId'])
+          .get();
+
+      if (mounted) {
+        setState(() {
+          tripCount = snapshot.docs.length;
+        });
+      }
+    } catch (e) {
+      print('Error loading trip count: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     // Get circuit breaker data from route arguments
     final Map<String, dynamic>? cbData =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+    // Compute power using formula: Power = Voltage × Current
+    final voltage = (cbData?['voltage'] ?? 0).toDouble();
+    final current = (cbData?['current'] ?? 0).toDouble();
+    final computedPower = voltage * current;
     return Scaffold(
       body: SingleChildScrollView(
         child: Container(
@@ -148,7 +198,7 @@ class About extends StatelessWidget {
                             ),
                             Expanded(
                               child: Text(
-                                '${cbData?['power'] ?? 0} A',
+                                '${computedPower.toStringAsFixed(1)} W',
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 softWrap: true,
@@ -226,7 +276,7 @@ class About extends StatelessWidget {
                             ),
                             Expanded(
                               child: Text(
-                                '0 Trips', // TODO: Implement trip counting
+                                '${tripCount ?? 0} Trips',
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 softWrap: true,

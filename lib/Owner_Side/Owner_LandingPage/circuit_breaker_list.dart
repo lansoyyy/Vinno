@@ -29,6 +29,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
   List<Map<String, dynamic>> bracketList = [];
   bool isLoading = true;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String? currentUserId;
   final FirebaseAuthService _authService = FirebaseAuthService();
 
@@ -58,7 +59,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
       currentUserId = user.uid;
 
       // Listen to circuit breakers in real-time
-      _dbRef.child('circuitBreakers').onValue.listen((event) {
+      _dbRef.child('circuitBreakers').onValue.listen((event) async {
         final data = event.snapshot.value as Map<dynamic, dynamic>?;
 
         if (data == null) {
@@ -71,8 +72,12 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
 
         List<Map<String, dynamic>> loadedCBs = [];
 
-        data.forEach((key, value) async {
-          final cbData = Map<String, dynamic>.from(value as Map);
+        // Convert to list to await all trip counts
+        final entries = data.entries.toList();
+
+        for (var entry in entries) {
+          final key = entry.key as String;
+          final cbData = Map<String, dynamic>.from(entry.value as Map);
 
           // Check if CB already exists in our local list (for ownership validation)
           final existingCbIndex =
@@ -89,45 +94,61 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                   userData.data() as Map<String, dynamic>;
 
               if (cbData['ownerId'] == data['createdBy'] && !isAlreadyOwned) {
-                setState(() {
-                  loadedCBs.add({
-                    'scbId': key,
-                    'scbName': cbData['scbName'] ?? 'Unknown',
-                    'isOn': cbData['isOn'] ?? false,
-                    'circuitBreakerRating': cbData['circuitBreakerRating'] ?? 0,
-                    'voltage': cbData['voltage'] ?? 0,
-                    'current': cbData['current'] ?? 0,
-                    'temperature': cbData['temperature'] ?? 0,
-                    'power': cbData['power'] ?? 0,
-                    'energy': cbData['energy'] ?? 0,
-                    'latitude': cbData['latitude'] ?? 0.0,
-                    'longitude': cbData['longitude'] ?? 0.0,
-                    'wifiName': cbData['wifiName'] ?? '',
-                  });
-                });
-              }
-            }
-          } else {
-            if (cbData['ownerId'] == currentUserId && !isAlreadyOwned) {
-              setState(() {
+                // Compute power using formula: Power = Voltage × Current
+                final voltage = (cbData['voltage'] ?? 0).toDouble();
+                final current = (cbData['current'] ?? 0).toDouble();
+                final computedPower = voltage * current;
+
+                // Get trip count for this circuit breaker
+                final tripCount = await _getTripCount(key);
+
                 loadedCBs.add({
                   'scbId': key,
                   'scbName': cbData['scbName'] ?? 'Unknown',
                   'isOn': cbData['isOn'] ?? false,
                   'circuitBreakerRating': cbData['circuitBreakerRating'] ?? 0,
-                  'voltage': cbData['voltage'] ?? 0,
-                  'current': cbData['current'] ?? 0,
+                  'voltage': voltage,
+                  'current': current,
                   'temperature': cbData['temperature'] ?? 0,
-                  'power': cbData['power'] ?? 0,
+                  'power':
+                      computedPower, // Use computed power instead of stored value
                   'energy': cbData['energy'] ?? 0,
                   'latitude': cbData['latitude'] ?? 0.0,
                   'longitude': cbData['longitude'] ?? 0.0,
                   'wifiName': cbData['wifiName'] ?? '',
+                  'tripCount': tripCount, // Add trip count
                 });
+              }
+            }
+          } else {
+            if (cbData['ownerId'] == currentUserId && !isAlreadyOwned) {
+              // Compute power using formula: Power = Voltage × Current
+              final voltage = (cbData['voltage'] ?? 0).toDouble();
+              final current = (cbData['current'] ?? 0).toDouble();
+              final computedPower = voltage * current;
+
+              // Get trip count for this circuit breaker
+              final tripCount = await _getTripCount(key);
+
+              loadedCBs.add({
+                'scbId': key,
+                'scbName': cbData['scbName'] ?? 'Unknown',
+                'isOn': cbData['isOn'] ?? false,
+                'circuitBreakerRating': cbData['circuitBreakerRating'] ?? 0,
+                'voltage': voltage,
+                'current': current,
+                'temperature': cbData['temperature'] ?? 0,
+                'power':
+                    computedPower, // Use computed power instead of stored value
+                'energy': cbData['energy'] ?? 0,
+                'latitude': cbData['latitude'] ?? 0.0,
+                'longitude': cbData['longitude'] ?? 0.0,
+                'wifiName': cbData['wifiName'] ?? '',
+                'tripCount': tripCount, // Add trip count
               });
             }
           }
-        });
+        }
 
         setState(() {
           bracketList = loadedCBs;
@@ -524,6 +545,25 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
     }
 
     setState(() {});
+  }
+
+  // Get trip count for a specific circuit breaker
+  Future<int> _getTripCount(String scbId) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return 0;
+
+      final snapshot = await _firestore
+          .collection('tripHistory')
+          .where('userId', isEqualTo: user.uid)
+          .where('scbId', isEqualTo: scbId)
+          .get();
+
+      return snapshot.docs.length;
+    } catch (e) {
+      print('Error getting trip count: $e');
+      return 0;
+    }
   }
 
   // Show edit mode confirmation dialog
