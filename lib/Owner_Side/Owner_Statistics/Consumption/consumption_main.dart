@@ -21,7 +21,7 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
   Map<String, Map<String, double>> monthData = {};
   Map<String, Map<String, double>> yearData = {};
   List<Map<String, dynamic>> circuitBreakers = [];
-  String selectedBreaker = 'All Breakers';
+  String selectedBreaker = '';
   bool isLoading = true;
   Map<String, double> currentReadings = {};
   Map<String, double> highestReadings = {};
@@ -30,6 +30,14 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
   void initState() {
     super.initState();
     _fetchData();
+    // Start periodic refresh every 10 seconds
+    _statisticsService.startPeriodicRefresh(_refreshCurrentReadings);
+  }
+
+  @override
+  void dispose() {
+    _statisticsService.stopPeriodicRefresh();
+    super.dispose();
   }
 
   Future<void> _fetchData() async {
@@ -63,21 +71,39 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
     }
   }
 
+  void _refreshCurrentReadings() {
+    _statisticsService.getCurrentReadings().listen((readings) {
+      if (mounted) {
+        setState(() {
+          currentReadings = readings;
+        });
+      }
+    });
+  }
+
   void _initializeBreakerData() {
-    // Initialize with "All Breakers" option
-    breakerData['All Breakers'] = {};
+    // Clear existing data
+    breakerData.clear();
+    dayData.clear();
+    weekData.clear();
+    monthData.clear();
+    yearData.clear();
 
     // Add individual circuit breakers
     for (var breaker in circuitBreakers) {
       breakerData[breaker['scbName']] = {};
+      dayData[breaker['scbName']] = {};
+      weekData[breaker['scbName']] = {};
+      monthData[breaker['scbName']] = {};
+      yearData[breaker['scbName']] = {};
+    }
+
+    // Set selected breaker to first breaker if empty
+    if (selectedBreaker.isEmpty && circuitBreakers.isNotEmpty) {
+      selectedBreaker = circuitBreakers.first['scbName'];
     }
 
     // Fetch data for each breaker for all periods
-    _fetchBreakerData('All Breakers', 'day');
-    _fetchBreakerData('All Breakers', 'week');
-    _fetchBreakerData('All Breakers', 'month');
-    _fetchBreakerData('All Breakers', 'year');
-
     for (var breaker in circuitBreakers) {
       _fetchBreakerData(breaker['scbName'], 'day');
       _fetchBreakerData(breaker['scbName'], 'week');
@@ -88,17 +114,9 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
 
   Future<void> _fetchBreakerData(String breakerName, String period) async {
     try {
-      Map<String, dynamic> data;
-      if (breakerName == 'All Breakers') {
-        data = await _statisticsService.getAggregatedData(period, metric: 'energy');
-      } else {
-        final breaker = circuitBreakers.firstWhere(
-          (b) => b['scbName'] == breakerName,
-          orElse: () => {'scbId': ''},
-        );
-        data = await _statisticsService.getHistoricalData(
-            breaker['scbId'], period, metric: 'energy');
-      }
+      // For consumption, use main breaker data which represents total consumption
+      final data = await _statisticsService.getConsumptionAggregatedData(period,
+          metric: 'energy');
 
       final processedData = <String, double>{};
       data.forEach((key, value) {

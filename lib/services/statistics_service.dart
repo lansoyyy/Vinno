@@ -1,13 +1,35 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'dart:math';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 class StatisticsService {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  Timer? _refreshTimer;
 
   // Get current user ID
   String? get currentUserId => _auth.currentUser?.uid;
+
+  // Start periodic data refresh every 10 seconds
+  void startPeriodicRefresh(VoidCallback callback) {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+      callback();
+    });
+  }
+
+  // Stop periodic refresh
+  void stopPeriodicRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+  }
+
+  // Dispose method to clean up resources
+  void dispose() {
+    stopPeriodicRefresh();
+  }
 
   // Fetch all circuit breakers for the current user
   Stream<List<Map<String, dynamic>>> getCircuitBreakers() {
@@ -52,7 +74,7 @@ class StatisticsService {
 
       if (snapshot.exists) {
         final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
-        final labels = _getPeriodLabels(period);
+        final labels = _getDynamicPeriodLabels(period);
         Map<String, dynamic> result = {};
 
         // Convert data entries to list with timestamps
@@ -131,7 +153,7 @@ class StatisticsService {
       if (breakerSnapshot.exists) {
         final breakerData =
             Map<String, dynamic>.from(breakerSnapshot.value as Map);
-        final labels = _getPeriodLabels(period);
+        final labels = _getDynamicPeriodLabels(period);
         Map<String, dynamic> data = {};
 
         // Use current values for all periods as a fallback
@@ -164,9 +186,9 @@ class StatisticsService {
       Map<String, dynamic> aggregatedData = {};
 
       // Initialize with empty data
-      final days = _getPeriodLabels(period);
-      for (String day in days) {
-        aggregatedData[day] = 0.0;
+      final labels = _getDynamicPeriodLabels(period);
+      for (String label in labels) {
+        aggregatedData[label] = 0.0;
       }
 
       // Aggregate data from all breakers
@@ -184,6 +206,43 @@ class StatisticsService {
       return aggregatedData;
     } catch (e) {
       print('Error fetching aggregated data: $e');
+      return _generateMockData(period);
+    }
+  }
+
+  // Get properly aggregated data for consumption (main breaker represents total)
+  Future<Map<String, dynamic>> getConsumptionAggregatedData(String period,
+      {String metric = 'energy'}) async {
+    try {
+      final breakers = await getCircuitBreakers().first;
+      if (breakers.isEmpty) return _generateMockData(period);
+
+      // Find the main breaker (first breaker or the one with highest rating)
+      var mainBreaker = breakers.reduce((a, b) {
+        final aRating = a['circuitBreakerRating'] ?? 0;
+        final bRating = b['circuitBreakerRating'] ?? 0;
+        return (aRating as int) > (bRating as int) ? a : b;
+      });
+
+      // Get data from main breaker only (represents total consumption)
+      final data =
+          await getHistoricalData(mainBreaker['scbId'], period, metric: metric);
+
+      // Ensure data is properly aggregated per period
+      Map<String, dynamic> aggregatedData = {};
+      final labels = _getDynamicPeriodLabels(period);
+
+      for (String label in labels) {
+        if (data.containsKey(label)) {
+          aggregatedData[label] = data[label];
+        } else {
+          aggregatedData[label] = 0.0;
+        }
+      }
+
+      return aggregatedData;
+    } catch (e) {
+      print('Error fetching consumption aggregated data: $e');
       return _generateMockData(period);
     }
   }
@@ -461,6 +520,7 @@ class StatisticsService {
 
   // Helper method to get period labels
   List<String> _getPeriodLabels(String period) {
+    final now = DateTime.now();
     switch (period) {
       case 'day':
         return ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'];
@@ -483,6 +543,61 @@ class StatisticsService {
           'Nov',
           'Dec'
         ];
+      default:
+        return [];
+    }
+  }
+
+  // Helper method to get dynamic period labels based on current date
+  List<String> _getDynamicPeriodLabels(String period) {
+    final now = DateTime.now();
+    switch (period) {
+      case 'day':
+        return ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'];
+      case 'week':
+        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      case 'month':
+        // Generate week ranges like "Oct 7 - Nov 2", "Nov 3-9", etc.
+        List<String> weekRanges = [];
+        final firstDayOfMonth = DateTime(now.year, now.month, 1);
+        final lastDayOfMonth = DateTime(now.year, now.month + 1, 0).day;
+
+        int currentDay = 1;
+        int weekNum = 1;
+        while (currentDay <= lastDayOfMonth) {
+          final weekStart = currentDay;
+          final weekEnd = (currentDay + 6) > lastDayOfMonth
+              ? lastDayOfMonth
+              : currentDay + 6;
+
+          final monthNames = [
+            'Jan',
+            'Feb',
+            'Mar',
+            'Apr',
+            'May',
+            'Jun',
+            'Jul',
+            'Aug',
+            'Sep',
+            'Oct',
+            'Nov',
+            'Dec'
+          ];
+          final monthName = monthNames[firstDayOfMonth.month - 1];
+
+          if (weekNum == 1) {
+            weekRanges.add('$monthName $weekStart - $weekEnd');
+          } else {
+            weekRanges.add('$monthName $weekStart-$weekEnd');
+          }
+
+          currentDay = weekEnd + 1;
+          weekNum++;
+        }
+        return weekRanges;
+      case 'year':
+        return ['2022', '2023', '2024', '2025'];
       default:
         return [];
     }
@@ -549,7 +664,7 @@ class StatisticsService {
 
   // Generate mock data (fallback when Firebase data is not available)
   Map<String, dynamic> _generateMockData(String period) {
-    final labels = _getPeriodLabels(period);
+    final labels = _getDynamicPeriodLabels(period);
     final random = Random();
     Map<String, dynamic> mockData = {};
 

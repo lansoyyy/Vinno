@@ -24,14 +24,24 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
   void initState() {
     super.initState();
     _fetchCurrentReadings();
+    // Start periodic refresh every 10 seconds
+    _statisticsService.startPeriodicRefresh(_fetchCurrentReadings);
+  }
+
+  @override
+  void dispose() {
+    _statisticsService.stopPeriodicRefresh();
+    super.dispose();
   }
 
   void _fetchCurrentReadings() {
     _statisticsService.getCurrentReadings().listen((readings) {
-      setState(() {
-        currentReadings = readings;
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          currentReadings = readings;
+          isLoading = false;
+        });
+      }
     });
   }
 

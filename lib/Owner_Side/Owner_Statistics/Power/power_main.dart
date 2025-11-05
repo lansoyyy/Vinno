@@ -33,6 +33,14 @@ class _PowerMainState extends State<PowerMain> {
   void initState() {
     super.initState();
     _fetchData();
+    // Start periodic refresh every 10 seconds
+    _statisticsService.startPeriodicRefresh(_refreshCurrentReadings);
+  }
+
+  @override
+  void dispose() {
+    _statisticsService.stopPeriodicRefresh();
+    super.dispose();
   }
 
   Future<void> _fetchData() async {
@@ -74,6 +82,16 @@ class _PowerMainState extends State<PowerMain> {
         isLoading = false;
       });
     }
+  }
+
+  void _refreshCurrentReadings() {
+    _statisticsService.getCurrentReadings().listen((readings) {
+      if (mounted) {
+        setState(() {
+          currentReadings = readings;
+        });
+      }
+    });
   }
 
   void _initializeBreakerData() {
