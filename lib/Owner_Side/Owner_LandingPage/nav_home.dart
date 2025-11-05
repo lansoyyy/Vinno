@@ -23,6 +23,7 @@ class _NavHomeState extends State<NavHome> {
   final Set<String> _processedViolations = {};
   Timer? _locationUpdateTimer;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _showAlerts = true; // Track if alerts should be shown
 
   @override
   void initState() {
@@ -40,6 +41,13 @@ class _NavHomeState extends State<NavHome> {
   // Setup listener for threshold violations
   void _setupThresholdListener() {
     _thresholdService.monitorThresholds().listen((violations) {
+      // Show alerts again if there are new violations and they were previously closed
+      if (violations.isNotEmpty && !_showAlerts) {
+        setState(() {
+          _showAlerts = true;
+        });
+      }
+
       for (var violation in violations) {
         final violationKey =
             '${violation.scbId}_${violation.type}_${violation.isWarning}_${violation.currentValue.toStringAsFixed(1)}';
@@ -154,7 +162,7 @@ class _NavHomeState extends State<NavHome> {
         StreamBuilder<List<ThresholdViolation>>(
           stream: _thresholdService.monitorThresholds(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            if (!snapshot.hasData || snapshot.data!.isEmpty || !_showAlerts) {
               return SizedBox.shrink();
             }
 
@@ -215,6 +223,18 @@ class _NavHomeState extends State<NavHome> {
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _showAlerts = false;
+                                });
+                              },
+                              child: Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 24,
                               ),
                             ),
                           ],
