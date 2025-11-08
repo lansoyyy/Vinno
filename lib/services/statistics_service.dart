@@ -15,7 +15,7 @@ class StatisticsService {
   // Start periodic data refresh every 10 seconds
   void startPeriodicRefresh(VoidCallback callback) {
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+    _refreshTimer = Timer.periodic(Duration(seconds: 5), (timer) {
       callback();
     });
   }

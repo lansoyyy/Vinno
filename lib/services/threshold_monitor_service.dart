@@ -337,28 +337,50 @@ class ThresholdMonitorService {
       print('⚠️ Warning (90-99%) - NOT turning OFF circuit breaker');
       await _logWarningEvent(violation);
     }
-    // If it's 100% or above, ALWAYS turn off the circuit breaker
+    // If it's 100% or above, execute the configured action
     else {
-      print(
-          '🔴 Threshold reached 100% - Turning OFF circuit breaker ${violation.scbId}');
-      await _dbRef
-          .child('circuitBreakers')
-          .child(violation.scbId)
-          .update({'isOn': false});
-      print('✅ Circuit breaker turned OFF successfully');
-
-      // Log based on action type
       switch (action) {
+        case 'notify':
+          print(
+              '📢 Notify mode - Only logging notification, NOT turning OFF circuit breaker');
+          await _logAlarmEvent(violation); // Log as alarm for notify mode
+          break;
         case 'trip':
+          print(
+              '🔴 Trip mode - Turning OFF circuit breaker ${violation.scbId}');
+          await _dbRef
+              .child('circuitBreakers')
+              .child(violation.scbId)
+              .update({'isOn': false});
+          print('✅ Circuit breaker turned OFF successfully');
           await _logTripEvent(violation);
           break;
         case 'alarm':
+          print(
+              '🚨 Alarm mode - Turning OFF circuit breaker ${violation.scbId}');
+          await _dbRef
+              .child('circuitBreakers')
+              .child(violation.scbId)
+              .update({'isOn': false});
+          print('✅ Circuit breaker turned OFF successfully');
           await _logAlarmEvent(violation);
           break;
         case 'off':
+          print('🔴 Off mode - Turning OFF circuit breaker ${violation.scbId}');
+          await _dbRef
+              .child('circuitBreakers')
+              .child(violation.scbId)
+              .update({'isOn': false});
+          print('✅ Circuit breaker turned OFF successfully');
           await _logOffEvent(violation);
           break;
         default:
+          print('🔴 Unknown action ($action) - Defaulting to trip mode');
+          await _dbRef
+              .child('circuitBreakers')
+              .child(violation.scbId)
+              .update({'isOn': false});
+          print('✅ Circuit breaker turned OFF successfully');
           await _logTripEvent(violation); // Default to trip log
           break;
       }
