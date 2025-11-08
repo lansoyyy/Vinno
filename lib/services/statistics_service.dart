@@ -3,6 +3,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'dart:math';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 class StatisticsService {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
@@ -42,22 +43,43 @@ class StatisticsService {
       List<Map<String, dynamic>> breakers = [];
       data.forEach((key, value) {
         final cbData = Map<String, dynamic>.from(value as Map);
-        if (cbData['ownerId'] == currentUserId) {
-          breakers.add({
-            'scbId': key,
-            'scbName': cbData['scbName'] ?? 'Unknown',
-            'isOn': cbData['isOn'] ?? false,
-            'circuitBreakerRating': cbData['circuitBreakerRating'] ?? 0,
-            'voltage': (cbData['voltage'] ?? 0).toDouble(),
-            'current': (cbData['current'] ?? 0).toDouble(),
-            'temperature': (cbData['temperature'] ?? 0).toDouble(),
-            'power': (cbData['power'] ?? 0).toDouble(),
-            'energy': (cbData['energy'] ?? 0).toDouble(),
-            'latitude': cbData['latitude'] ?? 0.0,
-            'longitude': cbData['longitude'] ?? 0.0,
-            'wifiName': cbData['wifiName'] ?? '',
-            'servoStatus': ''
-          });
+
+        if (box.read('userType') == 'Owner') {
+          if (cbData['ownerId'] == currentUserId) {
+            breakers.add({
+              'scbId': key,
+              'scbName': cbData['scbName'] ?? 'Unknown',
+              'isOn': cbData['isOn'] ?? false,
+              'circuitBreakerRating': cbData['circuitBreakerRating'] ?? 0,
+              'voltage': (cbData['voltage'] ?? 0).toDouble(),
+              'current': (cbData['current'] ?? 0).toDouble(),
+              'temperature': (cbData['temperature'] ?? 0).toDouble(),
+              'power': (cbData['power'] ?? 0).toDouble(),
+              'energy': (cbData['energy'] ?? 0).toDouble(),
+              'latitude': cbData['latitude'] ?? 0.0,
+              'longitude': cbData['longitude'] ?? 0.0,
+              'wifiName': cbData['wifiName'] ?? '',
+              'servoStatus': ''
+            });
+          }
+        } else {
+          if (cbData['ownerId'] == box.read('createdBy')) {
+            breakers.add({
+              'scbId': key,
+              'scbName': cbData['scbName'] ?? 'Unknown',
+              'isOn': cbData['isOn'] ?? false,
+              'circuitBreakerRating': cbData['circuitBreakerRating'] ?? 0,
+              'voltage': (cbData['voltage'] ?? 0).toDouble(),
+              'current': (cbData['current'] ?? 0).toDouble(),
+              'temperature': (cbData['temperature'] ?? 0).toDouble(),
+              'power': (cbData['power'] ?? 0).toDouble(),
+              'energy': (cbData['energy'] ?? 0).toDouble(),
+              'latitude': cbData['latitude'] ?? 0.0,
+              'longitude': cbData['longitude'] ?? 0.0,
+              'wifiName': cbData['wifiName'] ?? '',
+              'servoStatus': ''
+            });
+          }
         }
       });
       return breakers;

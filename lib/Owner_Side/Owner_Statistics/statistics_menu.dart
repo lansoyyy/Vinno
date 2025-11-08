@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_LandingPage/circuit_breaker_list.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Navigation/navigation_page.dart';
@@ -6,7 +8,9 @@ import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Current/current_main.dart
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Power/power_main.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Temperature/temperature_main.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Statistics/Voltage/voltage_main.dart';
+import 'package:smart_cb_1/services/firebase_auth_service.dart';
 import 'package:smart_cb_1/services/statistics_service.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 class StatisticsMenu extends StatefulWidget {
   const StatisticsMenu({super.key});
@@ -24,9 +28,12 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
   void initState() {
     super.initState();
     _fetchCurrentReadings();
+    initCreatedBy();
     // Start periodic refresh every 10 seconds
     _statisticsService.startPeriodicRefresh(_fetchCurrentReadings);
   }
+
+  final FirebaseAuthService _authService = FirebaseAuthService();
 
   @override
   void dispose() {
@@ -43,6 +50,19 @@ class _StatisticsMenuState extends State<StatisticsMenu> {
         });
       }
     });
+  }
+
+  initCreatedBy() async {
+    User? currentUser = _authService.currentUser;
+    if (currentUser != null) {
+      DocumentSnapshot? userData =
+          await _authService.getUserData(currentUser.uid);
+      if (userData != null && userData.exists) {
+        Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
+
+        box.write('createdBy', data['createdBy']);
+      }
+    }
   }
 
   @override
