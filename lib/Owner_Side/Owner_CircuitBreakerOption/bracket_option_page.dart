@@ -6,6 +6,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:smart_cb_1/services/threshold_monitor_service.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 class BracketOptionPage extends StatefulWidget {
   final Map<String, dynamic>? cbData;
@@ -394,66 +395,73 @@ class _BracketOptionPageState extends State<BracketOptionPage> {
                                         // View Voltage Button
                                         Row(
                                           children: [
-                                            SizedBox(
-                                              width: 155.0,
-                                              height: 35,
-                                              child: Container(
-                                                decoration: BoxDecoration(
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: Colors.black
-                                                          .withOpacity(0.25),
-                                                      offset: Offset(
-                                                        2,
-                                                        4,
-                                                      ), // x, y offset
-                                                      blurRadius: 4,
-                                                      spreadRadius: 0,
-                                                    ),
-                                                  ],
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                    5,
-                                                  ), // Match button shape
-                                                ),
-                                                child: ElevatedButton(
-                                                  style: ButtonStyle(
-                                                    padding:
-                                                        MaterialStateProperty
-                                                            .all<EdgeInsets>(
-                                                                EdgeInsets
-                                                                    .zero),
-                                                    foregroundColor:
-                                                        MaterialStateProperty
-                                                            .all<Color>(
-                                                                Colors.white),
-                                                    backgroundColor:
-                                                        MaterialStateProperty
-                                                            .all<Color>(Color(
-                                                                0xFF2ECC71)),
-                                                    shape: MaterialStateProperty
-                                                        .all<
-                                                            RoundedRectangleBorder>(
-                                                      RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(
-                                                          5,
+                                            Visibility(
+                                              visible:
+                                                  box.read('accountType') !=
+                                                      'Staff',
+                                              child: SizedBox(
+                                                width: 155.0,
+                                                height: 35,
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.black
+                                                            .withOpacity(0.25),
+                                                        offset: Offset(
+                                                          2,
+                                                          4,
+                                                        ), // x, y offset
+                                                        blurRadius: 4,
+                                                        spreadRadius: 0,
+                                                      ),
+                                                    ],
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                      5,
+                                                    ), // Match button shape
+                                                  ),
+                                                  child: ElevatedButton(
+                                                    style: ButtonStyle(
+                                                      padding:
+                                                          MaterialStateProperty
+                                                              .all<EdgeInsets>(
+                                                                  EdgeInsets
+                                                                      .zero),
+                                                      foregroundColor:
+                                                          MaterialStateProperty
+                                                              .all<Color>(
+                                                                  Colors.white),
+                                                      backgroundColor:
+                                                          MaterialStateProperty
+                                                              .all<Color>(Color(
+                                                                  0xFF2ECC71)),
+                                                      shape: MaterialStateProperty
+                                                          .all<
+                                                              RoundedRectangleBorder>(
+                                                        RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(
+                                                            5,
+                                                          ),
                                                         ),
                                                       ),
                                                     ),
+                                                    child: Text(
+                                                      'View Threshold Settings',
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                    ),
+                                                    onPressed: () {
+                                                      Navigator.pushNamed(
+                                                        context,
+                                                        '/voltagesetting',
+                                                        arguments:
+                                                            widget.cbData,
+                                                      );
+                                                    },
                                                   ),
-                                                  child: Text(
-                                                    'View Threshold Settings',
-                                                    textAlign: TextAlign.center,
-                                                  ),
-                                                  onPressed: () {
-                                                    Navigator.pushNamed(
-                                                      context,
-                                                      '/voltagesetting',
-                                                      arguments: widget.cbData,
-                                                    );
-                                                  },
                                                 ),
                                               ),
                                             ),

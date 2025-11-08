@@ -480,7 +480,13 @@ class _NavHomeState extends State<NavHome> {
         box.read('accountType') == 'Staff'
             ? GestureDetector(
                 onTap: () {
-                  Navigator.pushNamed(context, '/pin_location');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => GeolocationScreen(
+                              circuitBreakers: widget.circuitBreakers,
+                            )),
+                  );
                 },
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 20, right: 20),

@@ -418,7 +418,7 @@ Future<QuerySnapshot> _getBlockedUsers(String collection) async {
 
   return FirebaseFirestore.instance
       .collection(collection)
-      .where('createdBy', isEqualTo: currentUser.uid)
+      // .where('createdBy', isEqualTo: currentUser.uid)
       .where('isActive', isEqualTo: false)
       .get();
 }
