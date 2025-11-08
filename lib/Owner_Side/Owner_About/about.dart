@@ -55,10 +55,11 @@ class _AboutState extends State<About> {
     final Map<String, dynamic>? cbData =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
-    // Compute power using formula: Power = Voltage × Current
-    final voltage = (cbData?['voltage'] ?? 0).toDouble();
-    final current = (cbData?['current'] ?? 0).toDouble();
-    final computedPower = voltage * current;
+    // Compute power using formula: Power = Circuit Breaker Rating × 220V (fixed voltage)
+    final circuitBreakerRating =
+        (cbData?['circuitBreakerRating'] ?? 0).toDouble();
+    final fixedVoltage = 220.0; // Fixed voltage as per requirement
+    final computedPower = circuitBreakerRating * fixedVoltage;
     return Scaffold(
       body: SingleChildScrollView(
         child: Container(

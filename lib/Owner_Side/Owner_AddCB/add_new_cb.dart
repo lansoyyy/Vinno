@@ -71,36 +71,6 @@ class _AddNewCbState extends State<AddNewCb> {
     }
   }
 
-  Future<bool> _checkIfCBIsOwned(String cbId) async {
-    try {
-      final snapshot = await _dbRef.child('circuitBreakers').child(cbId).get();
-      if (snapshot.exists) {
-        final cbData = Map<String, dynamic>.from(snapshot.value as Map);
-        final ownerId = cbData['ownerId'];
-
-        if (ownerId != null) {
-          // Check if the current user is the owner
-          if (box.read('accountType') == 'Admin' ||
-              box.read('accountType') == 'Staff') {
-            DocumentSnapshot? userData =
-                await _authService.getUserData(currentUserId ?? '');
-            if (userData != null && userData.exists) {
-              Map<String, dynamic> data =
-                  userData.data() as Map<String, dynamic>;
-              return ownerId == data['createdBy'];
-            }
-          } else {
-            return ownerId == currentUserId;
-          }
-        }
-      }
-      return false;
-    } catch (e) {
-      print('Error checking CB ownership: $e');
-      return false;
-    }
-  }
-
   // A helper function to build custom input borders
   OutlineInputBorder customBorder({
     double radius = 16.0,
@@ -332,41 +302,42 @@ class _AddNewCbState extends State<AddNewCb> {
 
                         // Check if CB ID exists and validate ownership
                         final String inputCbId = cbID.text.trim();
-                        if (existingCBIds.contains(inputCbId)) {
-                          // Check if this CB is already owned by someone else
-                          final isOwned = await _checkIfCBIsOwned(inputCbId);
-                          if (isOwned) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text(
-                                      'This circuit breaker is already owned by you. Please use a different ID.')),
-                            );
-                            return;
-                          } else {
-                            // Check if it's owned by someone else
-                            try {
-                              final snapshot = await _dbRef
-                                  .child('circuitBreakers')
-                                  .child(inputCbId)
-                                  .get();
-                              if (snapshot.exists) {
-                                final cbData = Map<String, dynamic>.from(
-                                    snapshot.value as Map);
-                                final ownerId = cbData['ownerId'];
-                                if (ownerId != null &&
-                                    ownerId != currentUserId) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'This circuit breaker is already owned by another user. Please use a different ID.')),
-                                  );
-                                  return;
-                                }
-                              }
-                            } catch (e) {
-                              print('Error checking CB ownership: $e');
+
+                        // First check: CB ID must exist in the database
+                        if (!existingCBIds.contains(inputCbId)) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Invalid CB ID')),
+                          );
+                          return;
+                        }
+
+                        // Second check: CB must NOT have an owner yet
+                        try {
+                          final snapshot = await _dbRef
+                              .child('circuitBreakers')
+                              .child(inputCbId)
+                              .get();
+                          if (snapshot.exists) {
+                            final cbData = Map<String, dynamic>.from(
+                                snapshot.value as Map);
+                            final ownerId = cbData['ownerId'];
+
+                            // Check if CB already has any owner (regardless of who it is)
+                            if (ownerId != null || ownerId != '') {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('CB already has an owner.')),
+                              );
+                              return;
                             }
                           }
+                        } catch (e) {
+                          print('Error checking CB ownership: $e');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Error validating CB ID')),
+                          );
+                          return;
                         }
 
                         // Navigate with data (WiFi password will be entered in next screen)

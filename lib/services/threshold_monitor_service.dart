@@ -33,7 +33,7 @@ class ThresholdMonitorService {
         final cbData = Map<String, dynamic>.from(entry.value as Map);
 
         // Only monitor circuit breakers owned by current user
-        if (cbData['ownerId'] != user.uid) continue;
+        // if (cbData['ownerId'] != user.uid) continue;
 
         // Check if circuit breaker is ON
         if (cbData['isOn'] != true) continue;
