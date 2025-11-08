@@ -63,7 +63,8 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     _createMarkers();
 
     Timer.periodic(const Duration(seconds: 10), (timer) async {
-      print('uipdate');
+      print('update');
+      await _fetchUsersFromFirebase();
       _createMarkers();
     });
   }
@@ -94,6 +95,8 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
             'type': 'owner',
             'latitude': data['latitude'],
             'longitude': data['longitude'],
+            'isSharingLocation': data['isSharingLocation'] ?? false,
+            'mobile': data['mobile'] ?? '',
           });
         }
       }
@@ -116,6 +119,8 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
             'type': 'admin',
             'latitude': data['latitude'],
             'longitude': data['longitude'],
+            'isSharingLocation': data['isSharingLocation'] ?? false,
+            'mobile': data['mobile'] ?? '',
           });
         }
       }
@@ -138,6 +143,8 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
             'type': 'staff',
             'latitude': data['latitude'],
             'longitude': data['longitude'],
+            'isSharingLocation': data['isSharingLocation'] ?? false,
+            'mobile': data['mobile'] ?? '',
           });
         }
       }
@@ -257,71 +264,63 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     }
 
     // Add user markers only if location sharing is active
-    if (!shareLoc) {
+    if (shareLoc) {
       for (var user in _users) {
-        final markerId = MarkerId(user['id']);
+        // Only show users who are actually sharing their location
+        if (user['isSharingLocation'] == true) {
+          final markerId = MarkerId(user['id']);
 
-        // Check if user location is pinned
-        bool isUserLocationPinned = false;
-        if (_currentUserId != null) {
-          for (var u in _users) {
-            if (u['id'] == _currentUserId) {
-              isUserLocationPinned = box.read('isPinnedLocation') ?? false;
+          // Determine marker color based on user type
+          double markerHue;
+          Color circleColor;
+
+          switch (user['type']) {
+            case 'admin':
+              markerHue = BitmapDescriptor.hueBlue;
+              circleColor = Colors.blue;
               break;
-            }
+            case 'staff':
+              markerHue = BitmapDescriptor.hueGreen;
+              circleColor = Colors.green;
+              break;
+            case 'owner':
+            default:
+              markerHue = BitmapDescriptor.hueOrange;
+              circleColor = Colors.orange;
+              break;
           }
-        }
 
-        // Determine marker color based on user type
-        double markerHue;
-        Color circleColor;
-
-        switch (user['type']) {
-          case 'admin':
-            markerHue = BitmapDescriptor.hueBlue;
-            circleColor = Colors.blue;
-            break;
-          case 'staff':
-            markerHue = BitmapDescriptor.hueGreen;
-            circleColor = Colors.green;
-            break;
-          case 'owner':
-          default:
-            markerHue = BitmapDescriptor.hueOrange;
-            circleColor = Colors.orange;
-            break;
-        }
-
-        markers.add(
-          Marker(
-            markerId: markerId,
-            position: user['position'],
-            icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
-            infoWindow: InfoWindow(
-              title: user['name'],
-              snippet: user['type'].toString().toUpperCase(),
+          markers.add(
+            Marker(
+              markerId: markerId,
+              position: user['position'],
+              icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
+              infoWindow: InfoWindow(
+                title: user['name'],
+                snippet: user['type'].toString().toUpperCase(),
+              ),
+              onTap: () {
+                setState(() {
+                  selectedMobile = user['mobile'];
+                  _showMarkerDetails = true;
+                  _selectedMarkerId = user['id'];
+                });
+              },
             ),
-            onTap: () {
-              setState(() {
-                selectedMobile = user['mobile'];
-                _showMarkerDetails = true;
-                _selectedMarkerId = user['id'];
-              });
-            },
-          ),
-        );
+          );
 
-        // Add circle around user
-        circles.add(
-          Circle(
-            circleId: CircleId('circle_${user['id']}'),
-            center: user['position'],
-            radius: 100, // 100 meters radius
-            fillColor: circleColor.withOpacity(0.2),
-            strokeColor: circleColor,
-            strokeWidth: 2,
-          ),
-        );
+          // Add circle around user
+          circles.add(
+            Circle(
+              circleId: CircleId('circle_${user['id']}'),
+              center: user['position'],
+              radius: 100, // 100 meters radius
+              fillColor: circleColor.withOpacity(0.2),
+              strokeColor: circleColor,
+              strokeWidth: 2,
+            ),
+          );
+        }
       }
     }
 
@@ -632,64 +631,32 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
 
           // Share Live Location Button
 
-          shareLoc == false
-              ? Positioned(
-                  bottom: 30,
-                  left: 30,
-                  right: 30,
-                  child: ElevatedButton.icon(
-                    onPressed: shareLoc ? _stopSharingLocation : _shareLocation,
-                    icon: const Icon(Icons.location_on, color: Colors.white),
-                    label: Text(
-                      shareLoc
-                          ? 'Stop Sharing Location'
-                          : 'Share Live Location',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4CAF50),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: 5,
-                    ),
-                  ),
-                )
-              : Positioned(
-                  bottom: 30,
-                  left: 30,
-                  right: 30,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        timer?.cancel();
-                        shareLoc = false;
-                      });
-                    },
-                    icon: const Icon(Icons.location_on, color: Colors.white),
-                    label: const Text(
-                      'Stop Sharing',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4CAF50),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: 5,
-                    ),
-                  ),
+          Positioned(
+            bottom: 30,
+            left: 30,
+            right: 30,
+            child: ElevatedButton.icon(
+              onPressed: shareLoc ? _stopSharingLocation : _shareLocation,
+              icon: const Icon(Icons.location_on, color: Colors.white),
+              label: Text(
+                shareLoc ? 'Stop Sharing Location' : 'Share Live Location',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    shareLoc ? Colors.red : const Color(0xFF4CAF50),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                elevation: 5,
+              ),
+            ),
+          ),
 
           // Marker Details Bottom Sheet
           if (_showMarkerDetails && selectedUser != null)

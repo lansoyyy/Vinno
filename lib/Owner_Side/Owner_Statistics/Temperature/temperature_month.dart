@@ -11,11 +11,8 @@ class TemperatureMonth extends StatelessWidget {
     final barGroups = <BarChartGroupData>[];
     int index = 0;
 
-    final limitedData = Map<String, double>.fromEntries(
-      monthlyData.entries.skip(
-        (monthlyData.length - 8).clamp(0, monthlyData.length),
-      ),
-    );
+    // Use all data instead of limiting
+    final limitedData = monthlyData;
 
     final values = monthlyData.values.toList();
     final double minY = values.reduce((a, b) => a < b ? a : b);
@@ -28,7 +25,7 @@ class TemperatureMonth extends StatelessWidget {
     if (adjustedMinY == adjustedMaxY) adjustedMaxY = adjustedMinY + 10;
 
     // 🔁 Convert map entries into bar groups
-    limitedData.forEach((day, value) {
+    monthlyData.forEach((day, value) {
       barGroups.add(
         BarChartGroupData(
           x: index,

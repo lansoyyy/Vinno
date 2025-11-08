@@ -11,11 +11,8 @@ class CurrentYear extends StatelessWidget {
     final barGroups = <BarChartGroupData>[];
     int index = 0;
 
-    final limitedData = Map<String, double>.fromEntries(
-      yearlyData.entries.skip(
-        (yearlyData.length - 5).clamp(0, yearlyData.length),
-      ),
-    );
+    // Use all data since we now have proper year labels (2022, 2023...)
+    final limitedData = yearlyData;
 
     final values = yearlyData.values.toList();
     final double minY = values.reduce((a, b) => a < b ? a : b);

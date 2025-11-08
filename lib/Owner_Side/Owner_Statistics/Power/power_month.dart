@@ -11,11 +11,8 @@ class PowerMonth extends StatelessWidget {
     final barGroups = <BarChartGroupData>[];
     int index = 0;
 
-    final limitedData = Map<String, double>.fromEntries(
-      monthlyData.entries.skip(
-        (monthlyData.length - 8).clamp(0, monthlyData.length),
-      ),
-    );
+    // Use all data since we now have proper month names (Jan, Feb...)
+    final limitedData = monthlyData;
 
     final values = monthlyData.values.toList();
     final double minY = values.reduce((a, b) => a < b ? a : b);

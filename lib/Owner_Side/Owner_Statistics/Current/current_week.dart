@@ -11,11 +11,8 @@ class CurrentWeek extends StatelessWidget {
     final barGroups = <BarChartGroupData>[];
     int index = 0;
 
-    final limitedData = Map<String, double>.fromEntries(
-      weeklyData.entries.skip(
-        (weeklyData.length - 4).clamp(0, weeklyData.length),
-      ),
-    );
+    // Use all data since we now have proper week ranges (Oct 7 - Nov 2, Nov 3-9...)
+    final limitedData = weeklyData;
 
     final values = weeklyData.values.toList();
     final double minY = values.reduce((a, b) => a < b ? a : b);

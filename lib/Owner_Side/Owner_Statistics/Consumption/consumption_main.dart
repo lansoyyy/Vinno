@@ -89,26 +89,30 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
     monthData.clear();
     yearData.clear();
 
-    // Add individual circuit breakers
-    for (var breaker in circuitBreakers) {
-      breakerData[breaker['scbName']] = {};
-      dayData[breaker['scbName']] = {};
-      weekData[breaker['scbName']] = {};
-      monthData[breaker['scbName']] = {};
-      yearData[breaker['scbName']] = {};
-    }
+    // Find the main breaker (highest rating) for consumption
+    if (circuitBreakers.isNotEmpty) {
+      var mainBreaker = circuitBreakers.reduce((a, b) {
+        final aRating = a['circuitBreakerRating'] ?? 0;
+        final bRating = b['circuitBreakerRating'] ?? 0;
+        return (aRating as int) > (bRating as int) ? a : b;
+      });
 
-    // Set selected breaker to first breaker if empty
-    if (selectedBreaker.isEmpty && circuitBreakers.isNotEmpty) {
-      selectedBreaker = circuitBreakers.first['scbName'];
-    }
+      // Only add the main breaker for consumption (represents total consumption)
+      final mainBreakerName = mainBreaker['scbName'];
+      breakerData[mainBreakerName] = {};
+      dayData[mainBreakerName] = {};
+      weekData[mainBreakerName] = {};
+      monthData[mainBreakerName] = {};
+      yearData[mainBreakerName] = {};
 
-    // Fetch data for each breaker for all periods
-    for (var breaker in circuitBreakers) {
-      _fetchBreakerData(breaker['scbName'], 'day');
-      _fetchBreakerData(breaker['scbName'], 'week');
-      _fetchBreakerData(breaker['scbName'], 'month');
-      _fetchBreakerData(breaker['scbName'], 'year');
+      // Set selected breaker to main breaker
+      selectedBreaker = mainBreakerName;
+
+      // Fetch data for main breaker for all periods
+      _fetchBreakerData(mainBreakerName, 'day');
+      _fetchBreakerData(mainBreakerName, 'week');
+      _fetchBreakerData(mainBreakerName, 'month');
+      _fetchBreakerData(mainBreakerName, 'year');
     }
   }
 
@@ -198,7 +202,7 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
                           mainAxisAlignment: MainAxisAlignment.start,
                           children: [
                             Text(
-                              'Consumption',
+                              'Total Consumption',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -206,65 +210,16 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
                                 color: Colors.white,
                               ),
                             ),
-                            isLoading || breakerData.isEmpty
-                                ? Container(
-                                    width: 200,
-                                    height: 30,
-                                    child: Center(
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
-                                  )
-                                : DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      value: selectedBreaker,
-                                      dropdownColor: Colors.white,
-                                      alignment: Alignment.center,
-                                      iconEnabledColor: Colors.white,
-                                      // Style applies to selected value fallback only
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 17,
-                                      ),
-                                      items: breakerData.keys.map((breaker) {
-                                        return DropdownMenuItem<String>(
-                                          value: breaker,
-                                          child: Center(
-                                            child: Text(
-                                              breaker,
-                                              style: const TextStyle(
-                                                color: Colors.black,
-                                              ), // dropdown items
-                                            ),
-                                          ),
-                                        );
-                                      }).toList(),
-
-                                      // This builder customizes the selected item display separately
-                                      selectedItemBuilder:
-                                          (BuildContext context) {
-                                        return breakerData.keys.map((breaker) {
-                                          return Center(
-                                            child: Text(
-                                              breaker,
-                                              style: const TextStyle(
-                                                color: Colors
-                                                    .white, // selected value text color
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          );
-                                        }).toList();
-                                      },
-
-                                      onChanged: (value) {
-                                        setState(
-                                            () => selectedBreaker = value!);
-                                      },
-                                    ),
-                                  ),
+                            SizedBox(height: 10),
+                            Text(
+                              'Main Breaker',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontWeight: FontWeight.normal,
+                                fontSize: 16,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                            ),
                           ],
                         ),
                       ),

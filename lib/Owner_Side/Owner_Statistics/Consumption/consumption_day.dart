@@ -62,9 +62,8 @@ class ConsumptionDay extends StatelessWidget {
       );
     }
 
-    final limitedData = Map<String, double>.fromEntries(
-      dailyData.entries.skip((dailyData.length - 7).clamp(0, dailyData.length)),
-    );
+    // Use all the data since we now have proper day labels (Mon, Tue, Wed...)
+    final limitedData = dailyData;
 
     final values = dailyData.values.toList();
     final double minY = values.reduce((a, b) => a < b ? a : b);

@@ -11,11 +11,8 @@ class TemperatureWeek extends StatelessWidget {
     final barGroups = <BarChartGroupData>[];
     int index = 0;
 
-    final limitedData = Map<String, double>.fromEntries(
-      weeklyData.entries.skip(
-        (weeklyData.length - 4).clamp(0, weeklyData.length),
-      ),
-    );
+    // Use all data instead of limiting
+    final limitedData = weeklyData;
 
     final values = weeklyData.values.toList();
     final double minY = values.reduce((a, b) => a < b ? a : b);
@@ -28,7 +25,7 @@ class TemperatureWeek extends StatelessWidget {
     if (adjustedMinY == adjustedMaxY) adjustedMaxY = adjustedMinY + 10;
 
     // 🔁 Convert map entries into bar groups
-    limitedData.forEach((day, value) {
+    weeklyData.forEach((day, value) {
       barGroups.add(
         BarChartGroupData(
           x: index,

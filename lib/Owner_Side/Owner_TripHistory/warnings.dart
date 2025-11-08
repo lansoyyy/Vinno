@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 
 class Warnings extends StatefulWidget {
   const Warnings({super.key});
@@ -64,140 +65,175 @@ class _WarningsState extends State<Warnings> {
             .collection('alarmHistory')
             .where('userId', isEqualTo: user?.uid)
             .where('scbId', isEqualTo: scbId)
+            .where('action', isEqualTo: 'alarm') // Only include notify events
             .orderBy('timestamp', descending: true)
             .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: CircularProgressIndicator(color: Color(0xFF2ECC71)),
-            );
-          }
+        builder: (context, alarmSnapshot) {
+          return StreamBuilder<QuerySnapshot>(
+            stream: _firestore
+                .collection('warningHistory')
+                .where('userId', isEqualTo: user?.uid)
+                .where('scbId', isEqualTo: scbId)
+                .orderBy('timestamp', descending: true)
+                .snapshots(),
+            builder: (context, warningSnapshot) {
+              if (alarmSnapshot.connectionState == ConnectionState.waiting ||
+                  warningSnapshot.connectionState == ConnectionState.waiting) {
+                return Center(
+                  child: CircularProgressIndicator(color: Color(0xFF2ECC71)),
+                );
+              }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  'No alarm events recorded yet',
-                  style: TextStyle(fontSize: 15),
-                ),
-              ),
-            );
-          }
+              // Combine both collections
+              final List<QueryDocumentSnapshot> allWarnings = [];
 
-          final alarms = snapshot.data!.docs;
+              if (alarmSnapshot.hasData) {
+                allWarnings.addAll(alarmSnapshot.data!.docs);
+              }
 
-          return Stack(
-            children: [
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: Column(
-                    children: [
-                      Table(
-                        border: TableBorder.symmetric(
-                          inside: BorderSide(color: Colors.transparent),
-                          outside: BorderSide(color: Colors.transparent),
-                        ),
-                        columnWidths: const {
-                          0: FlexColumnWidth(3), // "Date" column (narrower)
-                          1: FlexColumnWidth(1.1), // "Time" column (wider)
-                        },
+              if (warningSnapshot.hasData) {
+                allWarnings.addAll(warningSnapshot.data!.docs);
+              }
+
+              if (allWarnings.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text(
+                      'No warning events recorded yet',
+                      style: TextStyle(fontSize: 15),
+                    ),
+                  ),
+                );
+              }
+
+              // Sort combined list by timestamp (descending)
+              allWarnings.sort((a, b) {
+                final aTimestamp = a['timestamp'] as Timestamp?;
+                final bTimestamp = b['timestamp'] as Timestamp?;
+
+                if (aTimestamp == null && bTimestamp == null) return 0;
+                if (aTimestamp == null) return 1;
+                if (bTimestamp == null) return -1;
+
+                return bTimestamp.compareTo(aTimestamp);
+              });
+
+              final warnings = allWarnings;
+
+              return Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 40, vertical: 15),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: Column(
                         children: [
-                          // Header Row
-                          TableRow(
+                          Table(
+                            border: TableBorder.symmetric(
+                              inside: BorderSide(color: Colors.transparent),
+                              outside: BorderSide(color: Colors.transparent),
+                            ),
+                            columnWidths: const {
+                              0: FlexColumnWidth(3), // "Date" column (narrower)
+                              1: FlexColumnWidth(1.1), // "Time" column (wider)
+                            },
                             children: [
-                              Padding(
-                                padding: EdgeInsets.symmetric(vertical: 10),
-                                child: Text(
-                                  'Date',
-                                  textAlign: TextAlign.left,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                              // Header Row
+                              TableRow(
+                                children: [
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 10),
+                                    child: Text(
+                                      'Date',
+                                      textAlign: TextAlign.left,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.symmetric(vertical: 10),
-                                child: Text(
-                                  'Time',
-                                  textAlign: TextAlign.left,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 10),
+                                    child: Text(
+                                      'Time',
+                                      textAlign: TextAlign.left,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
-                          ),
 
-                          // Data Rows
-                          for (var doc in alarms)
-                            TableRow(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _formatDate(doc['timestamp']),
+                              // Data Rows
+                              for (var doc in warnings)
+                                TableRow(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _formatDate(doc['timestamp']),
+                                            textAlign: TextAlign.left,
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${doc['type']} (${_getEventLabel(doc)})',
+                                            textAlign: TextAlign.left,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w300,
+                                              color: _getEventColor(doc),
+                                            ),
+                                          ),
+                                          Text(
+                                            '${doc['currentValue']}${doc['unit']} / ${doc['thresholdValue']}${doc['unit']}',
+                                            textAlign: TextAlign.left,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w400,
+                                              color: _getEventColor(doc),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      child: Text(
+                                        _formatTime(doc['timestamp']),
                                         textAlign: TextAlign.left,
                                         style: const TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w400,
                                         ),
                                       ),
-                                      Text(
-                                        '${doc['type']} (ALARM)',
-                                        textAlign: TextAlign.left,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w300,
-                                          color: Colors.orange[700],
-                                        ),
-                                      ),
-                                      Text(
-                                        '${doc['currentValue']}${doc['unit']} / ${doc['thresholdValue']}${doc['unit']}',
-                                        textAlign: TextAlign.left,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w400,
-                                          color: Colors.orange[600],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                  ),
-                                  child: Text(
-                                    _formatTime(doc['timestamp']),
-                                    textAlign: TextAlign.left,
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w400,
                                     ),
-                                  ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                            ],
+                          ),
+                          SizedBox(height: 60),
                         ],
                       ),
-                      SizedBox(height: 60),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           );
         },
       ),
@@ -217,6 +253,26 @@ class _WarningsState extends State<Warnings> {
         date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
     final period = date.hour >= 12 ? 'PM' : 'AM';
     return '$hour:${date.minute.toString().padLeft(2, '0')} $period';
+  }
+
+  String _getEventLabel(QueryDocumentSnapshot doc) {
+    final action = doc['action'] as String?;
+    if (action == 'alarm') {
+      return 'NOTIFY';
+    } else if (action == 'warning') {
+      return 'WARNING';
+    }
+    return 'UNKNOWN';
+  }
+
+  Color _getEventColor(QueryDocumentSnapshot doc) {
+    final action = doc['action'] as String?;
+    if (action == 'alarm') {
+      return Colors.blue[700]!; // Blue for notify events
+    } else if (action == 'warning') {
+      return Colors.orange[700]!; // Orange for warning events
+    }
+    return Colors.grey[600]!;
   }
 }
 

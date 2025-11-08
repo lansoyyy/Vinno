@@ -553,54 +553,95 @@ class StatisticsService {
     final now = DateTime.now();
     switch (period) {
       case 'day':
-        return ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'];
+        // Show last 7 days with proper day names and dates
+        List<String> dayNames = [];
+        for (int i = 6; i >= 0; i--) {
+          final date = now.subtract(Duration(days: i));
+          final dayName = _getDayName(date.weekday);
+          final dayOfMonth = date.day;
+          final monthName = _getMonthName(date.month);
+          dayNames.add('$dayName $monthName $dayOfMonth');
+        }
+        return dayNames;
       case 'week':
-        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      case 'month':
-        // Generate week ranges like "Oct 7 - Nov 2", "Nov 3-9", etc.
+        // Generate week ranges for the last 4 weeks
         List<String> weekRanges = [];
-        final firstDayOfMonth = DateTime(now.year, now.month, 1);
-        final lastDayOfMonth = DateTime(now.year, now.month + 1, 0).day;
+        for (int i = 3; i >= 0; i--) {
+          final weekStart =
+              now.subtract(Duration(days: (i * 7) + now.weekday - 1));
+          final weekEnd = weekStart.add(Duration(days: 6));
 
-        int currentDay = 1;
-        int weekNum = 1;
-        while (currentDay <= lastDayOfMonth) {
-          final weekStart = currentDay;
-          final weekEnd = (currentDay + 6) > lastDayOfMonth
-              ? lastDayOfMonth
-              : currentDay + 6;
+          final startMonthName = _getMonthName(weekStart.month);
+          final startDay = weekStart.day;
+          final endMonthName = _getMonthName(weekEnd.month);
+          final endDay = weekEnd.day;
 
-          final monthNames = [
-            'Jan',
-            'Feb',
-            'Mar',
-            'Apr',
-            'May',
-            'Jun',
-            'Jul',
-            'Aug',
-            'Sep',
-            'Oct',
-            'Nov',
-            'Dec'
-          ];
-          final monthName = monthNames[firstDayOfMonth.month - 1];
-
-          if (weekNum == 1) {
-            weekRanges.add('$monthName $weekStart - $weekEnd');
+          if (startMonthName == endMonthName) {
+            weekRanges.add('$startMonthName $startDay-$endDay');
           } else {
-            weekRanges.add('$monthName $weekStart-$weekEnd');
+            weekRanges.add('$startMonthName $startDay - $endMonthName $endDay');
           }
-
-          currentDay = weekEnd + 1;
-          weekNum++;
         }
         return weekRanges;
+      case 'month':
+        // Show last 12 months with proper month names
+        List<String> monthNames = [];
+        final allMonths = [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec'
+        ];
+
+        for (int i = 11; i >= 0; i--) {
+          final monthDate = DateTime(now.year, now.month - i, 1);
+          final monthIndex = (monthDate.month - 1) % 12;
+          monthNames.add(allMonths[monthIndex]);
+        }
+        return monthNames;
       case 'year':
-        return ['2022', '2023', '2024', '2025'];
+        // Show last 4 years
+        List<String> years = [];
+        for (int i = 3; i >= 0; i--) {
+          years.add('${now.year - i}');
+        }
+        return years;
       default:
         return [];
     }
+  }
+
+  // Helper method to get day name
+  String _getDayName(int weekday) {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return days[weekday - 1]; // weekday: 1=Monday, 7=Sunday
+  }
+
+  // Helper method to get month name
+  String _getMonthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    return months[month - 1];
   }
 
   // Helper method to determine which label a timestamp belongs to
@@ -608,36 +649,84 @@ class StatisticsService {
       DateTime dateTime, String period, List<String> labels, DateTime now) {
     switch (period) {
       case 'day':
-        // Group by 4-hour intervals
-        final hour = dateTime.hour;
-        if (hour >= 0 && hour < 4) return '00:00';
-        if (hour >= 4 && hour < 8) return '04:00';
-        if (hour >= 8 && hour < 12) return '08:00';
-        if (hour >= 12 && hour < 16) return '12:00';
-        if (hour >= 16 && hour < 20) return '16:00';
-        if (hour >= 20 && hour < 24) return '20:00';
-        return '24:00';
+        // Group by day with date (Mon Nov 5, Tue Nov 6, etc.)
+        final dayName = _getDayName(dateTime.weekday);
+        final monthName = _getMonthName(dateTime.month);
+        final dayOfMonth = dateTime.day;
+        final label = '$dayName $monthName $dayOfMonth';
+
+        // Find matching label in our list
+        for (String searchLabel in labels) {
+          if (searchLabel.contains(dayName) &&
+              searchLabel.contains('$monthName $dayOfMonth')) {
+            return searchLabel;
+          }
+        }
+        return null;
 
       case 'week':
-        // Group by day of week
-        final weekday = dateTime.weekday; // 1 = Monday, 7 = Sunday
-        const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        if (weekday >= 1 && weekday <= 7) {
-          return weekDays[weekday - 1];
+        // Group by week ranges (Oct 29-Nov 4, Nov 5-11, etc.)
+        for (String weekRange in labels) {
+          // Parse the week range to get start and end dates
+          if (weekRange.contains(' - ')) {
+            // Different months: "Oct 29 - Nov 4"
+            final parts = weekRange.split(' - ');
+            final startParts = parts[0].split(' ');
+            final endParts = parts[1].split(' ');
+
+            if (startParts.length >= 2 && endParts.length >= 2) {
+              final startMonth = _getMonthNumber(startParts[0]);
+              final startDay = int.tryParse(startParts[1]) ?? 1;
+              final endMonth = _getMonthNumber(endParts[0]);
+              final endDay = int.tryParse(endParts[1]) ?? 1;
+
+              // Adjust year if needed
+              int startYear = now.year;
+              int endYear = now.year;
+              if (startMonth > now.month) startYear--;
+              if (endMonth > now.month) endYear--;
+
+              final startDate = DateTime(startYear, startMonth, startDay);
+              final endDate = DateTime(endYear, endMonth, endDay);
+
+              if ((dateTime.isAtSameMomentAs(startDate) ||
+                      dateTime.isAfter(startDate)) &&
+                  (dateTime.isAtSameMomentAs(endDate) ||
+                      dateTime.isBefore(endDate))) {
+                return weekRange;
+              }
+            }
+          } else {
+            // Same month: "Nov 5-11"
+            final parts = weekRange.split(' ');
+            if (parts.length >= 2) {
+              final month = _getMonthNumber(parts[0]);
+              final dateRange = parts[1].split('-');
+              if (dateRange.length == 2) {
+                final startDay = int.tryParse(dateRange[0]) ?? 1;
+                final endDay = int.tryParse(dateRange[1]) ?? 1;
+
+                // Adjust year if needed
+                int year = now.year;
+                if (month > now.month) year--;
+
+                final startDate = DateTime(year, month, startDay);
+                final endDate = DateTime(year, month, endDay);
+
+                if ((dateTime.isAtSameMomentAs(startDate) ||
+                        dateTime.isAfter(startDate)) &&
+                    (dateTime.isAtSameMomentAs(endDate) ||
+                        dateTime.isBefore(endDate))) {
+                  return weekRange;
+                }
+              }
+            }
+          }
         }
         return null;
 
       case 'month':
-        // Group by week of month
-        final dayOfMonth = dateTime.day;
-        if (dayOfMonth >= 1 && dayOfMonth <= 7) return 'Week 1';
-        if (dayOfMonth >= 8 && dayOfMonth <= 14) return 'Week 2';
-        if (dayOfMonth >= 15 && dayOfMonth <= 21) return 'Week 3';
-        if (dayOfMonth >= 22) return 'Week 4';
-        return null;
-
-      case 'year':
-        // Group by month
+        // Group by month names (Jan, Feb...)
         const months = [
           'Jan',
           'Feb',
@@ -657,9 +746,32 @@ class StatisticsService {
         }
         return null;
 
+      case 'year':
+        // Group by year (2022, 2023...)
+        return '${dateTime.year}';
+
       default:
         return null;
     }
+  }
+
+  // Helper method to convert month name to month number
+  int _getMonthNumber(String monthName) {
+    const months = {
+      'Jan': 1,
+      'Feb': 2,
+      'Mar': 3,
+      'Apr': 4,
+      'May': 5,
+      'Jun': 6,
+      'Jul': 7,
+      'Aug': 8,
+      'Sep': 9,
+      'Oct': 10,
+      'Nov': 11,
+      'Dec': 12
+    };
+    return months[monthName] ?? 1;
   }
 
   // Generate mock data (fallback when Firebase data is not available)
