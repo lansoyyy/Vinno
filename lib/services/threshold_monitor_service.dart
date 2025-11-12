@@ -388,6 +388,12 @@ class ThresholdMonitorService {
   // Log trip event to Firestore
   Future<void> _logTripEvent(ThresholdViolation violation) async {
     try {
+      // Get the circuit breaker data to find the owner
+      final cbSnapshot =
+          await _dbRef.child('circuitBreakers').child(violation.scbId).get();
+      final cbData = cbSnapshot.value as Map<dynamic, dynamic>?;
+      final ownerId = cbData?['ownerId'] as String?;
+
       await _firestore.collection('tripHistory').add({
         'scbId': violation.scbId,
         'scbName': violation.scbName,
@@ -397,7 +403,8 @@ class ThresholdMonitorService {
         'unit': violation.unit,
         'action': 'trip',
         'timestamp': FieldValue.serverTimestamp(),
-        'userId': FirebaseAuth.instance.currentUser?.uid,
+        'ownerId':
+            ownerId, // Store the circuit breaker's owner ID instead of current user
       });
     } catch (e) {
       print('Error logging trip event: $e');
@@ -407,6 +414,12 @@ class ThresholdMonitorService {
   // Log alarm event to Firestore
   Future<void> _logAlarmEvent(ThresholdViolation violation) async {
     try {
+      // Get the circuit breaker data to find the owner
+      final cbSnapshot =
+          await _dbRef.child('circuitBreakers').child(violation.scbId).get();
+      final cbData = cbSnapshot.value as Map<dynamic, dynamic>?;
+      final ownerId = cbData?['ownerId'] as String?;
+
       await _firestore.collection('alarmHistory').add({
         'scbId': violation.scbId,
         'scbName': violation.scbName,
@@ -416,7 +429,8 @@ class ThresholdMonitorService {
         'unit': violation.unit,
         'action': 'alarm',
         'timestamp': FieldValue.serverTimestamp(),
-        'userId': FirebaseAuth.instance.currentUser?.uid,
+        'ownerId':
+            ownerId, // Store the circuit breaker's owner ID instead of current user
       });
     } catch (e) {
       print('Error logging alarm event: $e');
@@ -426,6 +440,12 @@ class ThresholdMonitorService {
   // Log off event to Firestore
   Future<void> _logOffEvent(ThresholdViolation violation) async {
     try {
+      // Get the circuit breaker data to find the owner
+      final cbSnapshot =
+          await _dbRef.child('circuitBreakers').child(violation.scbId).get();
+      final cbData = cbSnapshot.value as Map<dynamic, dynamic>?;
+      final ownerId = cbData?['ownerId'] as String?;
+
       await _firestore.collection('tripHistory').add({
         'scbId': violation.scbId,
         'scbName': violation.scbName,
@@ -435,7 +455,8 @@ class ThresholdMonitorService {
         'unit': violation.unit,
         'action': 'off',
         'timestamp': FieldValue.serverTimestamp(),
-        'userId': FirebaseAuth.instance.currentUser?.uid,
+        'ownerId':
+            ownerId, // Store the circuit breaker's owner ID instead of current user
       });
     } catch (e) {
       print('Error logging off event: $e');
@@ -445,6 +466,12 @@ class ThresholdMonitorService {
   // Log warning event to Firestore
   Future<void> _logWarningEvent(ThresholdViolation violation) async {
     try {
+      // Get the circuit breaker data to find the owner
+      final cbSnapshot =
+          await _dbRef.child('circuitBreakers').child(violation.scbId).get();
+      final cbData = cbSnapshot.value as Map<dynamic, dynamic>?;
+      final ownerId = cbData?['ownerId'] as String?;
+
       await _firestore.collection('warningHistory').add({
         'scbId': violation.scbId,
         'scbName': violation.scbName,
@@ -454,7 +481,8 @@ class ThresholdMonitorService {
         'unit': violation.unit,
         'action': 'warning',
         'timestamp': FieldValue.serverTimestamp(),
-        'userId': FirebaseAuth.instance.currentUser?.uid,
+        'ownerId':
+            ownerId, // Store the circuit breaker's owner ID instead of current user
       });
     } catch (e) {
       print('Error logging warning event: $e');

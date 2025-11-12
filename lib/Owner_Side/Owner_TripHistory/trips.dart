@@ -62,7 +62,6 @@ class _TripsState extends State<Trips> {
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore
             .collection('tripHistory')
-            .where('userId', isEqualTo: user?.uid)
             .where('scbId', isEqualTo: scbId)
             .orderBy('timestamp', descending: true)
             .snapshots(),

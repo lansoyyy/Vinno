@@ -63,7 +63,6 @@ class _WarningsState extends State<Warnings> {
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore
             .collection('alarmHistory')
-            .where('userId', isEqualTo: user?.uid)
             .where('scbId', isEqualTo: scbId)
             .where('action', isEqualTo: 'alarm') // Only include notify events
             .orderBy('timestamp', descending: true)
@@ -72,7 +71,6 @@ class _WarningsState extends State<Warnings> {
           return StreamBuilder<QuerySnapshot>(
             stream: _firestore
                 .collection('warningHistory')
-                .where('userId', isEqualTo: user?.uid)
                 .where('scbId', isEqualTo: scbId)
                 .orderBy('timestamp', descending: true)
                 .snapshots(),

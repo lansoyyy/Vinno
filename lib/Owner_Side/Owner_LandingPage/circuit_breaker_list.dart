@@ -433,9 +433,41 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
     );
 
     try {
-      // Delete each circuit breaker from Firebase
+      // Delete each circuit breaker from all Firebase collections
       for (String scbId in selectedIds) {
+        // Delete from main circuitBreakers collection
         await _dbRef.child('circuitBreakers').child(scbId).remove();
+
+        // Delete from all metric collections
+        await _dbRef.child('current').child(scbId).remove();
+        await _dbRef.child('power').child(scbId).remove();
+        await _dbRef.child('energy').child(scbId).remove();
+        await _dbRef.child('temperature').child(scbId).remove();
+        await _dbRef.child('voltage').child(scbId).remove();
+
+        // Delete from users collection (circuit breaker assignments)
+        await _dbRef.child('users').child(scbId).remove();
+
+        // Also delete from Firestore collections
+        // Delete trip history for this circuit breaker
+        final tripHistorySnapshot = await _firestore
+            .collection('tripHistory')
+            .where('scbId', isEqualTo: scbId)
+            .get();
+
+        for (var doc in tripHistorySnapshot.docs) {
+          await doc.reference.delete();
+        }
+
+        // Delete activity logs for this circuit breaker
+        final activityLogsSnapshot = await _firestore
+            .collection('activityLogs')
+            .where('scbId', isEqualTo: scbId)
+            .get();
+
+        for (var doc in activityLogsSnapshot.docs) {
+          await doc.reference.delete();
+        }
       }
 
       // Close loading dialog
@@ -446,8 +478,8 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
         SnackBar(
           content: Text(
             selectedIds.length == 1
-                ? 'Circuit breaker deleted successfully'
-                : '${selectedIds.length} circuit breakers deleted successfully',
+                ? 'Circuit breaker and all related data deleted successfully'
+                : '${selectedIds.length} circuit breakers and all related data deleted successfully',
           ),
           backgroundColor: Color(0xFF2ECC71),
           duration: Duration(seconds: 2),
@@ -698,12 +730,8 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
   // Get trip count for a specific circuit breaker
   Future<int> _getTripCount(String scbId) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return 0;
-
       final snapshot = await _firestore
           .collection('tripHistory')
-          .where('userId', isEqualTo: user.uid)
           .where('scbId', isEqualTo: scbId)
           .get();
 
