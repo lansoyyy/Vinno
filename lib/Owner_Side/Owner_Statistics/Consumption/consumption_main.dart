@@ -105,8 +105,10 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
       monthData[mainBreakerName] = {};
       yearData[mainBreakerName] = {};
 
-      // Set selected breaker to main breaker
-      selectedBreaker = mainBreakerName;
+      // Set selected breaker to main breaker if not already set
+      if (selectedBreaker.isEmpty) {
+        selectedBreaker = mainBreakerName;
+      }
 
       // Fetch data for main breaker for all periods
       _fetchBreakerData(mainBreakerName, 'day');
@@ -211,15 +213,66 @@ class _ConsumptionMainState extends State<ConsumptionMain> {
                               ),
                             ),
                             SizedBox(height: 10),
-                            Text(
-                              'Main Breaker',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontWeight: FontWeight.normal,
-                                fontSize: 16,
-                                color: Colors.white.withOpacity(0.8),
-                              ),
-                            ),
+                            isLoading || breakerData.isEmpty
+                                ? Container(
+                                    width: 200,
+                                    height: 30,
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  )
+                                : DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: selectedBreaker,
+                                      dropdownColor: Colors.white,
+                                      alignment: Alignment.center,
+                                      iconEnabledColor: Colors.white,
+                                      // Style applies to selected value fallback only
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 17,
+                                      ),
+                                      items: breakerData.keys.map((breaker) {
+                                        return DropdownMenuItem<String>(
+                                          value: breaker,
+                                          child: Center(
+                                            child: Text(
+                                              breaker,
+                                              style: const TextStyle(
+                                                color: Colors.black,
+                                              ), // dropdown items
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+
+                                      // This builder customizes the selected item display separately
+                                      selectedItemBuilder:
+                                          (BuildContext context) {
+                                        return breakerData.keys.map((breaker) {
+                                          return Center(
+                                            child: Text(
+                                              breaker,
+                                              style: const TextStyle(
+                                                color: Colors
+                                                    .white, // selected value text color
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          );
+                                        }).toList();
+                                      },
+
+                                      onChanged: (value) {
+                                        setState(
+                                          () => selectedBreaker = value!,
+                                        );
+                                      },
+                                    ),
+                                  ),
                           ],
                         ),
                       ),

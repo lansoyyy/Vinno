@@ -575,22 +575,16 @@ class StatisticsService {
     final now = DateTime.now();
     switch (period) {
       case 'day':
-        // Show last 7 days with proper day names and dates
-        List<String> dayNames = [];
-        for (int i = 6; i >= 0; i--) {
-          final date = now.subtract(Duration(days: i));
-          final dayName = _getDayName(date.weekday);
-          final dayOfMonth = date.day;
-          final monthName = _getMonthName(date.month);
-          dayNames.add('$dayName $monthName $dayOfMonth');
-        }
-        return dayNames;
+        // Show days of week: Mon, Tue, Wed... (3 letters only)
+        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       case 'week':
-        // Generate week ranges for the last 4 weeks
+        // Generate week ranges for the last 4 weeks: Oct 7 - Nov 2, Nov 3–9, Nov 10–16...
         List<String> weekRanges = [];
         for (int i = 3; i >= 0; i--) {
-          final weekStart =
-              now.subtract(Duration(days: (i * 7) + now.weekday - 1));
+          // Calculate the start of the week (Monday)
+          final currentWeekMonday =
+              now.subtract(Duration(days: now.weekday - 1));
+          final weekStart = currentWeekMonday.subtract(Duration(days: i * 7));
           final weekEnd = weekStart.add(Duration(days: 6));
 
           final startMonthName = _getMonthName(weekStart.month);
@@ -606,7 +600,7 @@ class StatisticsService {
         }
         return weekRanges;
       case 'month':
-        // Show last 12 months with proper month names
+        // Show last 6 months with 3-letter names: Jan, Feb...
         List<String> monthNames = [];
         final allMonths = [
           'Jan',
@@ -623,14 +617,14 @@ class StatisticsService {
           'Dec'
         ];
 
-        for (int i = 11; i >= 0; i--) {
+        for (int i = 5; i >= 0; i--) {
           final monthDate = DateTime(now.year, now.month - i, 1);
           final monthIndex = (monthDate.month - 1) % 12;
           monthNames.add(allMonths[monthIndex]);
         }
         return monthNames;
       case 'year':
-        // Show last 4 years
+        // Show last 4 years: 2022, 2023...
         List<String> years = [];
         for (int i = 3; i >= 0; i--) {
           years.add('${now.year - i}');
@@ -671,20 +665,9 @@ class StatisticsService {
       DateTime dateTime, String period, List<String> labels, DateTime now) {
     switch (period) {
       case 'day':
-        // Group by day with date (Mon Nov 5, Tue Nov 6, etc.)
+        // Group by day names (Mon, Tue, Wed...)
         final dayName = _getDayName(dateTime.weekday);
-        final monthName = _getMonthName(dateTime.month);
-        final dayOfMonth = dateTime.day;
-        final label = '$dayName $monthName $dayOfMonth';
-
-        // Find matching label in our list
-        for (String searchLabel in labels) {
-          if (searchLabel.contains(dayName) &&
-              searchLabel.contains('$monthName $dayOfMonth')) {
-            return searchLabel;
-          }
-        }
-        return null;
+        return labels.contains(dayName) ? dayName : null;
 
       case 'week':
         // Group by week ranges (Oct 29-Nov 4, Nov 5-11, etc.)

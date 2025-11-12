@@ -40,6 +40,9 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
   String? _currentUserId;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
+  // Timer for periodic updates
+  Timer? _updateTimer;
+
   @override
   void initState() {
     super.initState();
@@ -60,13 +63,44 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     await _getCurrentLocation();
     await _fetchUsersFromFirebase();
     await _fetchCircuitBreakersFromDatabase();
+    await _getCurrentUserSharingStatus(); // Get current user's sharing status
     _createMarkers();
 
-    Timer.periodic(const Duration(seconds: 10), (timer) async {
+    _updateTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
       print('update');
       await _fetchUsersFromFirebase();
+      await _getCurrentUserSharingStatus(); // Update current user's sharing status
       _createMarkers();
     });
+  }
+
+  // Get current user's location sharing status from Firebase
+  Future<void> _getCurrentUserSharingStatus() async {
+    try {
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        String userType = box.read('accountType') == 'Staff'
+            ? 'staff'
+            : box.read('accountType') == 'Owner'
+                ? 'owners'
+                : 'admins';
+
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection(userType)
+            .doc(currentUser.uid)
+            .get();
+
+        if (userDoc.exists) {
+          Map<String, dynamic> userData =
+              userDoc.data() as Map<String, dynamic>;
+          setState(() {
+            shareLoc = userData['isSharingLocation'] ?? false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error getting user sharing status: $e');
+    }
   }
 
   Future<void> _fetchUsersFromFirebase() async {
@@ -263,64 +297,62 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
       );
     }
 
-    // Add user markers only if location sharing is active
-    if (shareLoc) {
-      for (var user in _users) {
-        // Only show users who are actually sharing their location
-        if (user['isSharingLocation'] == true) {
-          final markerId = MarkerId(user['id']);
+    // Add user markers - only show users who are actually sharing their location
+    for (var user in _users) {
+      // Only show users who are actually sharing their location
+      if (user['isSharingLocation'] == true) {
+        final markerId = MarkerId(user['id']);
 
-          // Determine marker color based on user type
-          double markerHue;
-          Color circleColor;
+        // Determine marker color based on user type
+        double markerHue;
+        Color circleColor;
 
-          switch (user['type']) {
-            case 'admin':
-              markerHue = BitmapDescriptor.hueBlue;
-              circleColor = Colors.blue;
-              break;
-            case 'staff':
-              markerHue = BitmapDescriptor.hueGreen;
-              circleColor = Colors.green;
-              break;
-            case 'owner':
-            default:
-              markerHue = BitmapDescriptor.hueOrange;
-              circleColor = Colors.orange;
-              break;
-          }
-
-          markers.add(
-            Marker(
-              markerId: markerId,
-              position: user['position'],
-              icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
-              infoWindow: InfoWindow(
-                title: user['name'],
-                snippet: user['type'].toString().toUpperCase(),
-              ),
-              onTap: () {
-                setState(() {
-                  selectedMobile = user['mobile'];
-                  _showMarkerDetails = true;
-                  _selectedMarkerId = user['id'];
-                });
-              },
-            ),
-          );
-
-          // Add circle around user
-          circles.add(
-            Circle(
-              circleId: CircleId('circle_${user['id']}'),
-              center: user['position'],
-              radius: 100, // 100 meters radius
-              fillColor: circleColor.withOpacity(0.2),
-              strokeColor: circleColor,
-              strokeWidth: 2,
-            ),
-          );
+        switch (user['type']) {
+          case 'admin':
+            markerHue = BitmapDescriptor.hueBlue;
+            circleColor = Colors.blue;
+            break;
+          case 'staff':
+            markerHue = BitmapDescriptor.hueGreen;
+            circleColor = Colors.green;
+            break;
+          case 'owner':
+          default:
+            markerHue = BitmapDescriptor.hueOrange;
+            circleColor = Colors.orange;
+            break;
         }
+
+        markers.add(
+          Marker(
+            markerId: markerId,
+            position: user['position'],
+            icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
+            infoWindow: InfoWindow(
+              title: user['name'],
+              snippet: user['type'].toString().toUpperCase(),
+            ),
+            onTap: () {
+              setState(() {
+                selectedMobile = user['mobile'];
+                _showMarkerDetails = true;
+                _selectedMarkerId = user['id'];
+              });
+            },
+          ),
+        );
+
+        // Add circle around user
+        circles.add(
+          Circle(
+            circleId: CircleId('circle_${user['id']}'),
+            center: user['position'],
+            radius: 100, // 100 meters radius
+            fillColor: circleColor.withOpacity(0.2),
+            strokeColor: circleColor,
+            strokeWidth: 2,
+          ),
+        );
       }
     }
 
@@ -418,13 +450,36 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
 
   Timer? timer;
   Future<void> _shareLocation() async {
+    // Cancel any existing timer
+    timer?.cancel();
+
     setState(() {
       shareLoc = true;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Sharing live location...')),
     );
+
     LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    // Update sharing status immediately
+    try {
+      String userType = box.read('accountType') == 'Staff'
+          ? 'staff'
+          : box.read('accountType') == 'Owner'
+              ? 'owners'
+              : 'admins';
+      await _firestore.collection(userType).doc(user?.uid).update({
+        'isSharingLocation': true,
+      });
+    } catch (e) {
+      print('Error updating sharing status: $e');
+    }
+
+    // Start periodic location updates
     timer = Timer.periodic(const Duration(seconds: 10), (timer) async {
       try {
         if (permission == LocationPermission.denied) {
@@ -452,8 +507,7 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
             'latitude': position.latitude,
             'longitude': position.longitude,
             'lastLocationUpdate': FieldValue.serverTimestamp(),
-            'isSharingLocation':
-                true, // Add flag to indicate location is being shared
+            'isSharingLocation': true,
           });
         }
       } catch (e) {
@@ -463,10 +517,14 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
   }
 
   Future<void> _stopSharingLocation() async {
+    // Cancel the timer first to stop location updates
+    timer?.cancel();
+    timer = null; // Clear the timer reference
+
     setState(() {
       shareLoc = false;
     });
-    timer?.cancel(); // Stop the periodic location updates
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Stopped sharing location')),
     );
@@ -875,7 +933,15 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
 
   @override
   void dispose() {
+    // Cancel the timers to prevent memory leaks
+    timer?.cancel();
+    timer = null;
+    _updateTimer?.cancel();
+    _updateTimer = null;
+
+    // Dispose the map controller
     _mapController?.dispose();
+
     super.dispose();
   }
 }

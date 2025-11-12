@@ -1,5 +1,6 @@
 // ignore_for_file: sort_child_properties_last
 
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_LandingPage/circuit_breaker_tile.dart';
@@ -253,26 +254,78 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
     });
 
     try {
+      // Get current servo status before toggle
+      final servoSnapshot = await _dbRef
+          .child('circuitBreakers')
+          .child(cb['scbId'])
+          .child('servoStatus')
+          .get();
+
+      final originalServoStatus = servoSnapshot.value;
+
       // Update in Firebase
       await _dbRef
           .child('circuitBreakers')
           .child(cb['scbId'])
           .update({'isOn': newState});
 
-      // Show success message
+      // Show initial success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${cb['scbName']} turned ${newState ? 'ON' : 'OFF'}'),
-          duration: Duration(seconds: 2),
+          content: Text(newState
+              ? 'Turning circuit breaker ON...'
+              : 'Turning circuit breaker OFF...'),
+          duration: Duration(seconds: 1),
         ),
       );
 
-      // Log the circuit breaker action to activity logs
-      await ThresholdMonitorService.logCircuitBreakerAction(
-        scbId: cb['scbId'],
-        scbName: cb['scbName'],
-        action: newState ? 'on' : 'off',
-      );
+      // Monitor servo status for 5 seconds
+      bool servoStatusChanged = false;
+      Timer? timeoutTimer;
+      StreamSubscription<DatabaseEvent>? servoStatusSubscription;
+
+      servoStatusSubscription = _dbRef
+          .child('circuitBreakers')
+          .child(cb['scbId'])
+          .child('servoStatus')
+          .onValue
+          .listen((event) async {
+        final currentServoStatus = event.snapshot.value;
+
+        // Check if servo status has changed from original
+        if (currentServoStatus != originalServoStatus) {
+          servoStatusChanged = true;
+          servoStatusSubscription?.cancel();
+          timeoutTimer?.cancel();
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Circuit breaker successfully ${newState ? 'turned ON' : 'turned OFF'}'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+
+          // Log the circuit breaker action to activity logs
+          await ThresholdMonitorService.logCircuitBreakerAction(
+            scbId: cb['scbId'],
+            scbName: cb['scbName'],
+            action: newState ? 'on' : 'off',
+          );
+        }
+      });
+
+      // Set timeout for 5 seconds
+      timeoutTimer = Timer(Duration(seconds: 5), () {
+        servoStatusSubscription?.cancel();
+
+        if (!servoStatusChanged) {
+          // Rollback the isOn value since servo didn't respond
+          _rollbackCircuitBreakerState(cb['scbId'], currentState, newState);
+        }
+      });
     } catch (e) {
       // Revert on error
       setState(() {
@@ -280,6 +333,45 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating circuit breaker: $e')),
+      );
+    }
+  }
+
+  // Rollback circuit breaker state if servo doesn't respond
+  Future<void> _rollbackCircuitBreakerState(
+      String scbId, bool originalState, bool attemptedState) async {
+    try {
+      // Find the index of the circuit breaker in our list
+      final index = bracketList.indexWhere((cb) => cb['scbId'] == scbId);
+      if (index == -1) return;
+
+      // Rollback the isOn field in Firebase
+      await _dbRef.child('circuitBreakers').child(scbId).update({
+        'isOn': originalState,
+      });
+
+      // Update local state to original
+      setState(() {
+        bracketList[index]['isOn'] = originalState;
+      });
+
+      // Show rollback message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Circuit breaker failed to respond. State reverted to ${originalState ? 'ON' : 'OFF'}'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      // Show error message even for rollback failure
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to revert circuit breaker state: $e'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
       );
     }
   }
