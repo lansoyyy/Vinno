@@ -56,7 +56,7 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
             ownerData = ownerDoc.data() as Map<String, dynamic>;
           }
 
-          // Get only active admins created by this owner
+          // Get only active admins created by the same owner
           QuerySnapshot adminSnapshot =
               await _authService.getAdmins(userData!['createdBy']);
           adminList = adminSnapshot.docs
@@ -65,7 +65,7 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
               .where((admin) => admin['isActive'] == true)
               .toList();
 
-          // Get only active staff created by this owner
+          // Get only active staff created by the same owner
           QuerySnapshot staffSnapshot =
               await _authService.getStaff(userData!['createdBy']);
           staffList = staffSnapshot.docs

@@ -50,6 +50,14 @@ class _AuthWrapperState extends State<AuthWrapper> {
             Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
             String accountType = data['accountType'] ?? 'Owner';
 
+            // Store account type in box
+            box.write('accountType', accountType);
+
+            // Store createdBy for Admin/Staff users to access correct circuit breakers
+            if (accountType != 'Owner' && data.containsKey('createdBy')) {
+              box.write('createdBy', data['createdBy']);
+            }
+
             setState(() {
               _isLoading = false;
             });

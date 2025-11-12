@@ -75,6 +75,12 @@ class _LoginPageState extends State<LoginPage> {
           Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
           String accountType = data['accountType'] ?? 'Owner';
           box.write('accountType', accountType);
+
+          // Store createdBy for Admin/Staff users to access correct circuit breakers
+          if (accountType != 'Owner' && data.containsKey('createdBy')) {
+            box.write('createdBy', data['createdBy']);
+          }
+
           if (data['isActive']) {
             // Navigate based on account type
             if (accountType == 'Owner') {
