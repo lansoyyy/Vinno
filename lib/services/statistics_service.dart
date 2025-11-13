@@ -44,7 +44,7 @@ class StatisticsService {
       data.forEach((key, value) {
         final cbData = Map<String, dynamic>.from(value as Map);
 
-        if (box.read('userType') == 'Owner') {
+        if (box.read('accountType') == 'Owner') {
           if (cbData['ownerId'] == currentUserId) {
             breakers.add({
               'scbId': key,
@@ -63,7 +63,7 @@ class StatisticsService {
             });
           }
         } else {
-          if (cbData['ownerId'] == box.read('createdBy')) {
+          if (cbData['accountType'] == box.read('createdBy')) {
             breakers.add({
               'scbId': key,
               'scbName': cbData['scbName'] ?? 'Unknown',
@@ -91,6 +91,9 @@ class StatisticsService {
       String breakerId, String period,
       {String metric = 'energy'}) async {
     try {
+      print(
+          'Fetching historical data for breakerId: $breakerId, period: $period, metric: $metric');
+
       // First, get the circuit breaker creation date to filter data properly
       final breakerSnapshot =
           await _dbRef.child('circuitBreakers').child(breakerId).get();
@@ -101,21 +104,36 @@ class StatisticsService {
             Map<String, dynamic>.from(breakerSnapshot.value as Map);
         // Try to get creation date from timestamp or use a default
         if (breakerData.containsKey('createdAt')) {
-          breakerCreationDate = DateTime.fromMillisecondsSinceEpoch(
-              breakerData['createdAt'] * 1000);
+          // Check if timestamp is already in milliseconds or in seconds
+          int timestamp = breakerData['createdAt'];
+          if (timestamp < 10000000000) {
+            // It's in seconds, convert to milliseconds
+            timestamp = timestamp * 1000;
+          }
+          breakerCreationDate = DateTime.fromMillisecondsSinceEpoch(timestamp);
         } else if (breakerData.containsKey('timestamp')) {
-          breakerCreationDate = DateTime.fromMillisecondsSinceEpoch(
-              breakerData['timestamp'] * 1000);
+          // Check if timestamp is already in milliseconds or in seconds
+          int timestamp = breakerData['timestamp'];
+          if (timestamp < 10000000000) {
+            // It's in seconds, convert to milliseconds
+            timestamp = timestamp * 1000;
+          }
+          breakerCreationDate = DateTime.fromMillisecondsSinceEpoch(timestamp);
         }
+        print('Breaker creation date: $breakerCreationDate');
       }
 
-      // First try to get data from new structure (voltage/CB-LIVING-002/)
+      // Get data from the correct collection structure: metric/circuitBreakerId/randomId/
       final snapshot = await _dbRef.child(metric).child(breakerId).get();
+      print('Snapshot exists: ${snapshot.exists}, value: ${snapshot.value}');
 
-      if (snapshot.exists) {
+      if (snapshot.exists && snapshot.value != null) {
         final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
         final labels = _getDynamicPeriodLabels(period);
         Map<String, dynamic> result = {};
+
+        print('Data entries count: ${data.entries.length}');
+        print('Labels: $labels');
 
         // Convert data entries to list with timestamps
         List<MapEntry<dynamic, dynamic>> dataEntries = data.entries.toList();
@@ -124,11 +142,11 @@ class StatisticsService {
         dataEntries.sort((a, b) {
           final aTimestamp =
               (a.value is Map && a.value.containsKey('timestamp'))
-                  ? a.value['timestamp'] as int
+                  ? (a.value['timestamp'] as num).toInt()
                   : 0;
           final bTimestamp =
               (b.value is Map && b.value.containsKey('timestamp'))
-                  ? b.value['timestamp'] as int
+                  ? (b.value['timestamp'] as num).toInt()
                   : 0;
           return aTimestamp.compareTo(bTimestamp);
         });
@@ -141,13 +159,18 @@ class StatisticsService {
           groupedData[label] = [];
         }
 
+        int validDataPoints = 0;
         for (var entry in dataEntries) {
           if (entry.value is Map &&
               entry.value.containsKey(metric) &&
               entry.value.containsKey('timestamp')) {
-            final timestamp = entry.value['timestamp'] as int;
-            final dateTime =
-                DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+            // Check if timestamp is already in milliseconds or in seconds
+            int timestamp = (entry.value['timestamp'] as num).toInt();
+            if (timestamp < 10000000000) {
+              // It's in seconds, convert to milliseconds
+              timestamp = timestamp * 1000;
+            }
+            final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
             final value = (entry.value[metric] as num).toDouble();
 
             // Skip data before breaker creation date
@@ -156,6 +179,7 @@ class StatisticsService {
               continue;
             }
 
+            validDataPoints++;
             // Determine which period this data point belongs to
             String? labelForData =
                 _getLabelForTimestamp(dateTime, period, labels, now);
@@ -166,6 +190,9 @@ class StatisticsService {
             }
           }
         }
+
+        print('Valid data points: $validDataPoints');
+        print('Grouped data: $groupedData');
 
         // Calculate average for each period
         for (String label in labels) {
@@ -178,18 +205,8 @@ class StatisticsService {
           }
         }
 
+        print('Result: $result');
         return result;
-      }
-
-      // First try to get data from historicalData node (for future implementation)
-      final historicalSnapshot = await _dbRef
-          .child('historicalData')
-          .child(breakerId)
-          .child(period)
-          .get();
-
-      if (historicalSnapshot.exists) {
-        return Map<String, dynamic>.from(historicalSnapshot.value as Map);
       }
 
       // If no historical data exists, return empty data (no mock data)
@@ -200,6 +217,7 @@ class StatisticsService {
         data[label] = 0.0;
       }
 
+      print('No data found, returning empty data: $data');
       return data;
     } catch (e) {
       print('Error fetching historical data: $e');
@@ -288,72 +306,149 @@ class StatisticsService {
       for (var breaker in breakers) {
         String breakerId = breaker['scbId'];
 
-        // Read from voltage collection
-        final voltageSnapshot =
-            await _dbRef.child('voltage').child(breakerId).limitToLast(1).get();
-        if (voltageSnapshot.exists) {
-          final data = Map<dynamic, dynamic>.from(voltageSnapshot.value as Map);
-          final latestEntry = data.values.first;
-          if (latestEntry is Map && latestEntry.containsKey('voltage')) {
-            totalVoltage += (latestEntry['voltage'] as num).toDouble();
+        try {
+          // Read from voltage collection (structure: voltage/circuitBreakerId/randomId/)
+          final voltageSnapshot = await _dbRef
+              .child('voltage')
+              .child(breakerId)
+              .orderByChild('timestamp')
+              .limitToLast(1)
+              .get();
+          if (voltageSnapshot.exists && voltageSnapshot.value != null) {
+            final data =
+                Map<dynamic, dynamic>.from(voltageSnapshot.value as Map);
+            if (data.isNotEmpty) {
+              final latestEntry = data.values.first;
+              if (latestEntry is Map && latestEntry.containsKey('voltage')) {
+                totalVoltage += (latestEntry['voltage'] as num).toDouble();
+                print(
+                    'Voltage reading from Firebase: ${latestEntry['voltage']} for breaker: $breakerId');
+              }
+            }
+          } else {
+            totalVoltage += breaker['voltage'] as double;
+            print(
+                'Using fallback voltage: ${breaker['voltage']} for breaker: $breakerId');
           }
-        } else {
+        } catch (e) {
+          print('Error reading voltage for $breakerId: $e');
           totalVoltage += breaker['voltage'] as double;
         }
 
-        // Read from current collection
-        final currentSnapshot =
-            await _dbRef.child('current').child(breakerId).limitToLast(1).get();
-        if (currentSnapshot.exists) {
-          final data = Map<dynamic, dynamic>.from(currentSnapshot.value as Map);
-          final latestEntry = data.values.first;
-          if (latestEntry is Map && latestEntry.containsKey('current')) {
-            totalCurrent += (latestEntry['current'] as num).toDouble();
+        try {
+          // Read from current collection (structure: current/circuitBreakerId/randomId/)
+          final currentSnapshot = await _dbRef
+              .child('current')
+              .child(breakerId)
+              .orderByChild('timestamp')
+              .limitToLast(1)
+              .get();
+          if (currentSnapshot.exists && currentSnapshot.value != null) {
+            final data =
+                Map<dynamic, dynamic>.from(currentSnapshot.value as Map);
+            if (data.isNotEmpty) {
+              final latestEntry = data.values.first;
+              if (latestEntry is Map && latestEntry.containsKey('current')) {
+                totalCurrent += (latestEntry['current'] as num).toDouble();
+                print(
+                    'Current reading from Firebase: ${latestEntry['current']} for breaker: $breakerId');
+              }
+            }
+          } else {
+            totalCurrent += breaker['current'] as double;
+            print(
+                'Using fallback current: ${breaker['current']} for breaker: $breakerId');
           }
-        } else {
+        } catch (e) {
+          print('Error reading current for $breakerId: $e');
           totalCurrent += breaker['current'] as double;
         }
 
-        // Read from power collection
-        final powerSnapshot =
-            await _dbRef.child('power').child(breakerId).limitToLast(1).get();
-        if (powerSnapshot.exists) {
-          final data = Map<dynamic, dynamic>.from(powerSnapshot.value as Map);
-          final latestEntry = data.values.first;
-          if (latestEntry is Map && latestEntry.containsKey('power')) {
-            totalPower += (latestEntry['power'] as num).toDouble();
+        try {
+          // Read from power collection (structure: power/circuitBreakerId/randomId/)
+          final powerSnapshot = await _dbRef
+              .child('power')
+              .child(breakerId)
+              .orderByChild('timestamp')
+              .limitToLast(1)
+              .get();
+          if (powerSnapshot.exists && powerSnapshot.value != null) {
+            final data = Map<dynamic, dynamic>.from(powerSnapshot.value as Map);
+            if (data.isNotEmpty) {
+              final latestEntry = data.values.first;
+              if (latestEntry is Map && latestEntry.containsKey('power')) {
+                totalPower += (latestEntry['power'] as num).toDouble();
+                print(
+                    'Power reading from Firebase: ${latestEntry['power']} for breaker: $breakerId');
+              }
+            }
+          } else {
+            totalPower += breaker['power'] as double;
+            print(
+                'Using fallback power: ${breaker['power']} for breaker: $breakerId');
           }
-        } else {
+        } catch (e) {
+          print('Error reading power for $breakerId: $e');
           totalPower += breaker['power'] as double;
         }
 
-        // Read from temperature collection
-        final temperatureSnapshot = await _dbRef
-            .child('temperature')
-            .child(breakerId)
-            .limitToLast(1)
-            .get();
-        if (temperatureSnapshot.exists) {
-          final data =
-              Map<dynamic, dynamic>.from(temperatureSnapshot.value as Map);
-          final latestEntry = data.values.first;
-          if (latestEntry is Map && latestEntry.containsKey('temperature')) {
-            totalTemperature += (latestEntry['temperature'] as num).toDouble();
+        try {
+          // Read from temperature collection (structure: temperature/circuitBreakerId/randomId/)
+          final temperatureSnapshot = await _dbRef
+              .child('temperature')
+              .child(breakerId)
+              .orderByChild('timestamp')
+              .limitToLast(1)
+              .get();
+          if (temperatureSnapshot.exists && temperatureSnapshot.value != null) {
+            final data =
+                Map<dynamic, dynamic>.from(temperatureSnapshot.value as Map);
+            if (data.isNotEmpty) {
+              final latestEntry = data.values.first;
+              if (latestEntry is Map &&
+                  latestEntry.containsKey('temperature')) {
+                totalTemperature +=
+                    (latestEntry['temperature'] as num).toDouble();
+                print(
+                    'Temperature reading from Firebase: ${latestEntry['temperature']} for breaker: $breakerId');
+              }
+            }
+          } else {
+            totalTemperature += breaker['temperature'] as double;
+            print(
+                'Using fallback temperature: ${breaker['temperature']} for breaker: $breakerId');
           }
-        } else {
+        } catch (e) {
+          print('Error reading temperature for $breakerId: $e');
           totalTemperature += breaker['temperature'] as double;
         }
 
-        // Read from energy collection
-        final energySnapshot =
-            await _dbRef.child('energy').child(breakerId).limitToLast(1).get();
-        if (energySnapshot.exists) {
-          final data = Map<dynamic, dynamic>.from(energySnapshot.value as Map);
-          final latestEntry = data.values.first;
-          if (latestEntry is Map && latestEntry.containsKey('energy')) {
-            totalEnergy += (latestEntry['energy'] as num).toDouble();
+        try {
+          // Read from energy collection (structure: energy/circuitBreakerId/randomId/)
+          final energySnapshot = await _dbRef
+              .child('energy')
+              .child(breakerId)
+              .orderByChild('timestamp')
+              .limitToLast(1)
+              .get();
+          if (energySnapshot.exists && energySnapshot.value != null) {
+            final data =
+                Map<dynamic, dynamic>.from(energySnapshot.value as Map);
+            if (data.isNotEmpty) {
+              final latestEntry = data.values.first;
+              if (latestEntry is Map && latestEntry.containsKey('energy')) {
+                totalEnergy += (latestEntry['energy'] as num).toDouble();
+                print(
+                    'Energy reading from Firebase: ${latestEntry['energy']} for breaker: $breakerId');
+              }
+            }
+          } else {
+            totalEnergy += breaker['energy'] as double;
+            print(
+                'Using fallback energy: ${breaker['energy']} for breaker: $breakerId');
           }
-        } else {
+        } catch (e) {
+          print('Error reading energy for $breakerId: $e');
           totalEnergy += breaker['energy'] as double;
         }
       }
@@ -404,80 +499,180 @@ class StatisticsService {
       for (var breaker in breakers) {
         String breakerId = breaker['scbId'];
 
-        // Read from voltage collection
-        final voltageSnapshot =
-            await _dbRef.child('voltage').child(breakerId).get();
-        if (voltageSnapshot.exists) {
-          final data = Map<dynamic, dynamic>.from(voltageSnapshot.value as Map);
-          data.forEach((key, value) {
-            if (value is Map && value.containsKey('voltage')) {
-              double voltage = (value['voltage'] as num).toDouble();
-              maxVoltage = max(maxVoltage, voltage);
+        try {
+          // Read from voltage collection (structure: voltage/circuitBreakerId/randomId/)
+          final voltageSnapshot = await _dbRef
+              .child('voltage')
+              .child(breakerId)
+              .orderByChild('timestamp')
+              .limitToLast(100)
+              .get();
+          if (voltageSnapshot.exists && voltageSnapshot.value != null) {
+            final data =
+                Map<dynamic, dynamic>.from(voltageSnapshot.value as Map);
+            if (data.isNotEmpty) {
+              print(
+                  'Voltage data found for breaker $breakerId: ${data.length} entries');
+              data.forEach((key, value) {
+                if (value is Map && value.containsKey('voltage')) {
+                  double voltage = (value['voltage'] as num).toDouble();
+                  maxVoltage = max(maxVoltage, voltage);
+                }
+              });
+            } else {
+              maxVoltage = max(maxVoltage, breaker['voltage'] as double);
+              print(
+                  'No voltage data found, using fallback: ${breaker['voltage']} for breaker: $breakerId');
             }
-          });
-        } else {
+          } else {
+            maxVoltage = max(maxVoltage, breaker['voltage'] as double);
+            print(
+                'No voltage snapshot, using fallback: ${breaker['voltage']} for breaker: $breakerId');
+          }
+        } catch (e) {
+          print('Error reading voltage for $breakerId: $e');
           maxVoltage = max(maxVoltage, breaker['voltage'] as double);
         }
 
-        // Read from current collection
-        final currentSnapshot =
-            await _dbRef.child('current').child(breakerId).get();
-        if (currentSnapshot.exists) {
-          final data = Map<dynamic, dynamic>.from(currentSnapshot.value as Map);
-          data.forEach((key, value) {
-            if (value is Map && value.containsKey('current')) {
-              double current = (value['current'] as num).toDouble();
-              maxCurrent = max(maxCurrent, current);
+        try {
+          // Read from current collection (structure: current/circuitBreakerId/randomId/)
+          final currentSnapshot = await _dbRef
+              .child('current')
+              .child(breakerId)
+              .orderByChild('timestamp')
+              .limitToLast(100)
+              .get();
+          if (currentSnapshot.exists && currentSnapshot.value != null) {
+            final data =
+                Map<dynamic, dynamic>.from(currentSnapshot.value as Map);
+            if (data.isNotEmpty) {
+              print(
+                  'Current data found for breaker $breakerId: ${data.length} entries');
+              data.forEach((key, value) {
+                if (value is Map && value.containsKey('current')) {
+                  double current = (value['current'] as num).toDouble();
+                  maxCurrent = max(maxCurrent, current);
+                }
+              });
+            } else {
+              maxCurrent = max(maxCurrent, breaker['current'] as double);
+              print(
+                  'No current data found, using fallback: ${breaker['current']} for breaker: $breakerId');
             }
-          });
-        } else {
+          } else {
+            maxCurrent = max(maxCurrent, breaker['current'] as double);
+            print(
+                'No current snapshot, using fallback: ${breaker['current']} for breaker: $breakerId');
+          }
+        } catch (e) {
+          print('Error reading current for $breakerId: $e');
           maxCurrent = max(maxCurrent, breaker['current'] as double);
         }
 
-        // Read from power collection
-        final powerSnapshot =
-            await _dbRef.child('power').child(breakerId).get();
-        if (powerSnapshot.exists) {
-          final data = Map<dynamic, dynamic>.from(powerSnapshot.value as Map);
-          data.forEach((key, value) {
-            if (value is Map && value.containsKey('power')) {
-              double power = (value['power'] as num).toDouble();
-              maxPower = max(maxPower, power);
+        try {
+          // Read from power collection (structure: power/circuitBreakerId/randomId/)
+          final powerSnapshot = await _dbRef
+              .child('power')
+              .child(breakerId)
+              .orderByChild('timestamp')
+              .limitToLast(100)
+              .get();
+          if (powerSnapshot.exists && powerSnapshot.value != null) {
+            final data = Map<dynamic, dynamic>.from(powerSnapshot.value as Map);
+            if (data.isNotEmpty) {
+              print(
+                  'Power data found for breaker $breakerId: ${data.length} entries');
+              data.forEach((key, value) {
+                if (value is Map && value.containsKey('power')) {
+                  double power = (value['power'] as num).toDouble();
+                  maxPower = max(maxPower, power);
+                }
+              });
+            } else {
+              maxPower = max(maxPower, breaker['power'] as double);
+              print(
+                  'No power data found, using fallback: ${breaker['power']} for breaker: $breakerId');
             }
-          });
-        } else {
+          } else {
+            maxPower = max(maxPower, breaker['power'] as double);
+            print(
+                'No power snapshot, using fallback: ${breaker['power']} for breaker: $breakerId');
+          }
+        } catch (e) {
+          print('Error reading power for $breakerId: $e');
           maxPower = max(maxPower, breaker['power'] as double);
         }
 
-        // Read from temperature collection
-        final temperatureSnapshot =
-            await _dbRef.child('temperature').child(breakerId).get();
-        if (temperatureSnapshot.exists) {
-          final data =
-              Map<dynamic, dynamic>.from(temperatureSnapshot.value as Map);
-          data.forEach((key, value) {
-            if (value is Map && value.containsKey('temperature')) {
-              double temperature = (value['temperature'] as num).toDouble();
-              maxTemperature = max(maxTemperature, temperature);
+        try {
+          // Read from temperature collection (structure: temperature/circuitBreakerId/randomId/)
+          final temperatureSnapshot = await _dbRef
+              .child('temperature')
+              .child(breakerId)
+              .orderByChild('timestamp')
+              .limitToLast(100)
+              .get();
+          if (temperatureSnapshot.exists && temperatureSnapshot.value != null) {
+            final data =
+                Map<dynamic, dynamic>.from(temperatureSnapshot.value as Map);
+            if (data.isNotEmpty) {
+              print(
+                  'Temperature data found for breaker $breakerId: ${data.length} entries');
+              data.forEach((key, value) {
+                if (value is Map && value.containsKey('temperature')) {
+                  double temperature = (value['temperature'] as num).toDouble();
+                  maxTemperature = max(maxTemperature, temperature);
+                }
+              });
+            } else {
+              maxTemperature =
+                  max(maxTemperature, breaker['temperature'] as double);
+              print(
+                  'No temperature data found, using fallback: ${breaker['temperature']} for breaker: $breakerId');
             }
-          });
-        } else {
+          } else {
+            maxTemperature =
+                max(maxTemperature, breaker['temperature'] as double);
+            print(
+                'No temperature snapshot, using fallback: ${breaker['temperature']} for breaker: $breakerId');
+          }
+        } catch (e) {
+          print('Error reading temperature for $breakerId: $e');
           maxTemperature =
               max(maxTemperature, breaker['temperature'] as double);
         }
 
-        // Read from energy collection
-        final energySnapshot =
-            await _dbRef.child('energy').child(breakerId).get();
-        if (energySnapshot.exists) {
-          final data = Map<dynamic, dynamic>.from(energySnapshot.value as Map);
-          data.forEach((key, value) {
-            if (value is Map && value.containsKey('energy')) {
-              double energy = (value['energy'] as num).toDouble();
-              maxEnergy = max(maxEnergy, energy);
+        try {
+          // Read from energy collection (structure: energy/circuitBreakerId/randomId/)
+          final energySnapshot = await _dbRef
+              .child('energy')
+              .child(breakerId)
+              .orderByChild('timestamp')
+              .limitToLast(100)
+              .get();
+          if (energySnapshot.exists && energySnapshot.value != null) {
+            final data =
+                Map<dynamic, dynamic>.from(energySnapshot.value as Map);
+            if (data.isNotEmpty) {
+              print(
+                  'Energy data found for breaker $breakerId: ${data.length} entries');
+              data.forEach((key, value) {
+                if (value is Map && value.containsKey('energy')) {
+                  double energy = (value['energy'] as num).toDouble();
+                  maxEnergy = max(maxEnergy, energy);
+                }
+              });
+            } else {
+              maxEnergy = max(maxEnergy, breaker['energy'] as double);
+              print(
+                  'No energy data found, using fallback: ${breaker['energy']} for breaker: $breakerId');
             }
-          });
-        } else {
+          } else {
+            maxEnergy = max(maxEnergy, breaker['energy'] as double);
+            print(
+                'No energy snapshot, using fallback: ${breaker['energy']} for breaker: $breakerId');
+          }
+        } catch (e) {
+          print('Error reading energy for $breakerId: $e');
           maxEnergy = max(maxEnergy, breaker['energy'] as double);
         }
       }
@@ -505,41 +700,60 @@ class StatisticsService {
   Future<List<double>> getRealTimeData(
       String breakerId, String dataType) async {
     try {
-      // First try to get data from the new structure (voltage/CB-LIVING-002/randomId/)
-      final snapshot =
-          await _dbRef.child(dataType).child(breakerId).limitToLast(20).get();
+      // Get data from the correct structure: dataType/circuitBreakerId/randomId/
+      final snapshot = await _dbRef
+          .child(dataType)
+          .child(breakerId)
+          .orderByChild('timestamp')
+          .limitToLast(20)
+          .get();
 
-      if (snapshot.exists) {
+      print(
+          'Real-time data snapshot for $dataType/$breakerId - exists: ${snapshot.exists}');
+
+      if (snapshot.exists && snapshot.value != null) {
         final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
         List<MapEntry> entries = data.entries.toList();
+        print('Real-time data entries count: ${entries.length}');
 
         // Sort by timestamp
         entries.sort((a, b) {
-          final aTimestamp = a.value['timestamp'] as int? ?? 0;
-          final bTimestamp = b.value['timestamp'] as int? ?? 0;
+          int aTimestamp = 0;
+          int bTimestamp = 0;
+
+          if (a.value is Map && a.value.containsKey('timestamp')) {
+            aTimestamp = a.value['timestamp'] as int;
+            if (aTimestamp < 10000000000) {
+              // It's in seconds, convert to milliseconds
+              aTimestamp = aTimestamp * 1000;
+            }
+          }
+
+          if (b.value is Map && b.value.containsKey('timestamp')) {
+            bTimestamp = b.value['timestamp'] as int;
+            if (bTimestamp < 10000000000) {
+              // It's in seconds, convert to milliseconds
+              bTimestamp = bTimestamp * 1000;
+            }
+          }
+
           return aTimestamp.compareTo(bTimestamp);
         });
 
         // Extract the values in chronological order
-        return entries.map((entry) {
-          final value = entry.value[dataType] as num? ?? 0;
-          return value.toDouble();
-        }).toList();
+        List<double> values = [];
+        for (var entry in entries) {
+          if (entry.value is Map && entry.value.containsKey(dataType)) {
+            final value = entry.value[dataType] as num? ?? 0;
+            values.add(value.toDouble());
+          }
+        }
+
+        print('Real-time values extracted: ${values.length} values');
+        return values.isNotEmpty ? values : _generateMockRealTimeData();
       }
 
-      // Fallback to old structure
-      final oldSnapshot = await _dbRef
-          .child('realTimeData')
-          .child(breakerId)
-          .child(dataType)
-          .limitToLast(20)
-          .get();
-
-      if (oldSnapshot.exists) {
-        final data = Map<dynamic, dynamic>.from(oldSnapshot.value as Map);
-        return data.values.map((e) => (e as num).toDouble()).toList();
-      }
-
+      print('No real-time data found, using mock data');
       return _generateMockRealTimeData();
     } catch (e) {
       print('Error fetching real-time data: $e');

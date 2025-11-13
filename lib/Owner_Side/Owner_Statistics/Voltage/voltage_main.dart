@@ -52,7 +52,7 @@ class _VoltageMainState extends State<VoltageMain> {
         setState(() {
           circuitBreakers = breakers;
           if (selectedBreaker.isEmpty && breakers.isNotEmpty) {
-            selectedBreaker = breakers.first['scbName'];
+            selectedBreaker = breakers.first['scbName'] ?? '';
           }
           _initializeBreakerData();
         });
@@ -128,6 +128,8 @@ class _VoltageMainState extends State<VoltageMain> {
         (b) => b['scbName'] == breakerName,
         orElse: () => {'scbId': ''},
       );
+      print(
+          'Fetching data for breaker: $breakerName, period: $period, breakerId: ${breaker['scbId']}');
       final data = await _statisticsService
           .getHistoricalData(breaker['scbId'], period, metric: 'voltage');
 
@@ -135,6 +137,8 @@ class _VoltageMainState extends State<VoltageMain> {
       data.forEach((key, value) {
         processedData[key] = value.toDouble();
       });
+
+      print('Processed data for $breakerName ($period): $processedData');
 
       setState(() {
         switch (period) {
@@ -165,6 +169,15 @@ class _VoltageMainState extends State<VoltageMain> {
         (b) => b['scbName'] == selectedBreaker,
         orElse: () => {'scbId': ''},
       );
+
+      // Skip if breakerId is empty
+      if (breaker['scbId'].toString().isEmpty) {
+        print('Breaker ID is empty for $selectedBreaker');
+        setState(() {
+          realTimeValues = [];
+        });
+        return;
+      }
 
       // Use the service method which now reads from the new data structure
       final data =

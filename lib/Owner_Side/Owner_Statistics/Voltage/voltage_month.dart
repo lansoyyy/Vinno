@@ -8,15 +8,51 @@ class VoltageMonth extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('VoltageMonth build called with data: $monthlyData');
     final barGroups = <BarChartGroupData>[];
     int index = 0;
 
     // Use all data since we now have proper month names (Jan, Feb...)
     final limitedData = monthlyData;
 
+    // Handle empty data case
+    if (monthlyData.isEmpty) {
+      print('Monthly data is empty, showing no data message');
+      return Scaffold(
+        backgroundColor: Color(0xFFF6F6F6),
+        appBar: AppBar(
+          title: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 0),
+            child: const Text(
+              'Voltage (V)',
+              style: TextStyle(
+                fontSize: 20,
+                color: Color(0xFF176639),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          automaticallyImplyLeading: false,
+        ),
+        body: Center(
+          child: Text(
+            'No data available for selected period',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+            ),
+          ),
+        ),
+      );
+    }
+
     final values = monthlyData.values.toList();
-    final double minY = values.reduce((a, b) => a < b ? a : b);
-    final double maxY = values.reduce((a, b) => a > b ? a : b);
+    // Handle case where all values are 0
+    final double minY =
+        values.isNotEmpty ? values.reduce((a, b) => a < b ? a : b) : 0.0;
+    final double maxY =
+        values.isNotEmpty ? values.reduce((a, b) => a > b ? a : b) : 100.0;
     double adjustedMinY = (minY - 10).clamp(0, double.infinity).floorToDouble();
     ; // 5 units padding below
     double adjustedMaxY = (maxY * 1.25).ceil().toDouble();
