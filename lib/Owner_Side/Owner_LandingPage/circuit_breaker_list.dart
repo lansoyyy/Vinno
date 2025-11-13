@@ -24,8 +24,9 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
   Set<String> selectedBracketNames = {}; // stores indexes of selected tiles
   late List<List<dynamic>> originalBracketList;
 
-  List<Map<String, dynamic>> undoStack = [];
-  List<Map<String, dynamic>> redoStack = [];
+  // Removed undo and redo stacks as buttons are being removed
+  // List<Map<String, dynamic>> undoStack = [];
+  // List<Map<String, dynamic>> redoStack = [];
 
   // Changed from hardcoded list to dynamic list from Firebase
   List<Map<String, dynamic>> bracketList = [];
@@ -92,7 +93,29 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
               Map<String, dynamic> data =
                   userData.data() as Map<String, dynamic>;
 
-              if (cbData['ownerId'] == data['createdBy']) {
+              // Get the ultimate owner ID - for Staff created by Admin, we need to trace back to the Owner
+              String ultimateOwnerId = data['createdBy'];
+              if (data['accountType'] == 'Staff' ||
+                  data['accountType'] == 'Admin') {
+                // For Staff or Admin users, get the creator's data to find the ultimate owner
+                DocumentSnapshot? creatorData =
+                    await _authService.getUserData(data['createdBy']);
+                if (creatorData != null && creatorData.exists) {
+                  Map<String, dynamic> creatorInfo =
+                      creatorData.data() as Map<String, dynamic>;
+
+                  // If the creator is an Admin, get their creator (the Owner)
+                  if (creatorInfo['accountType'] == 'Admin') {
+                    ultimateOwnerId = creatorInfo['createdBy'];
+                  }
+                  // If the creator is already the Owner, use their ID
+                  else if (creatorInfo['accountType'] == 'Owner') {
+                    ultimateOwnerId = creatorInfo['uid'];
+                  }
+                }
+              }
+
+              if (cbData['ownerId'] == ultimateOwnerId) {
                 // Check if this CB already exists in our list and update if needed
                 final existingIndex =
                     loadedCBs.indexWhere((cb) => cb['scbId'] == key);
@@ -318,7 +341,7 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
       });
 
       // Set timeout for 5 seconds
-      timeoutTimer = Timer(Duration(seconds: 5), () {
+      timeoutTimer = Timer(Duration(seconds: 10), () {
         servoStatusSubscription?.cancel();
 
         if (!servoStatusChanged) {
@@ -435,6 +458,12 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
     try {
       // Delete each circuit breaker from all Firebase collections
       for (String scbId in selectedIds) {
+        // Get the circuit breaker data to find the owner before deletion
+        final cbSnapshot =
+            await _dbRef.child('circuitBreakers').child(scbId).get();
+        final cbData = cbSnapshot.value as Map<dynamic, dynamic>?;
+        final ownerId = cbData?['ownerId'] as String?;
+
         // Delete from main circuitBreakers collection
         await _dbRef.child('circuitBreakers').child(scbId).remove();
 
@@ -448,6 +477,16 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
         // Delete from users collection (circuit breaker assignments)
         await _dbRef.child('users').child(scbId).remove();
 
+        // Also delete from user's circuitBreakers reference to fix "CB already has an owner" issue
+        if (ownerId != null) {
+          await _dbRef
+              .child('users')
+              .child(ownerId)
+              .child('circuitBreakers')
+              .child(scbId)
+              .remove();
+        }
+
         // Also delete from Firestore collections
         // Delete trip history for this circuit breaker
         final tripHistorySnapshot = await _firestore
@@ -456,6 +495,26 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
             .get();
 
         for (var doc in tripHistorySnapshot.docs) {
+          await doc.reference.delete();
+        }
+
+        // Delete alarm history for this circuit breaker
+        final alarmHistorySnapshot = await _firestore
+            .collection('alarmHistory')
+            .where('scbId', isEqualTo: scbId)
+            .get();
+
+        for (var doc in alarmHistorySnapshot.docs) {
+          await doc.reference.delete();
+        }
+
+        // Delete warning history for this circuit breaker
+        final warningHistorySnapshot = await _firestore
+            .collection('warningHistory')
+            .where('scbId', isEqualTo: scbId)
+            .get();
+
+        for (var doc in warningHistorySnapshot.docs) {
           await doc.reference.delete();
         }
 
@@ -604,11 +663,9 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
     }
   }
 
-  // Check if undo is available
-  bool get _canUndo => undoStack.isNotEmpty;
-
-  // Check if redo is available
-  bool get _canRedo => redoStack.isNotEmpty;
+  // Removed undo/redo checks as buttons are being removed
+  // bool get _canUndo => undoStack.isNotEmpty;
+  // bool get _canRedo => redoStack.isNotEmpty;
 
   // Cancel edit mode and discard changes
   void _cancelEditMode() {
@@ -629,38 +686,37 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
       // Clear tracking
       _originalNames.clear();
       _originalWifiNames.clear();
-      undoStack.clear();
-      redoStack.clear();
+      // undoStack.clear();
+      // redoStack.clear();
     });
   }
 
-  // Undo changes
-  void _undoChanges() {
-    if (!_canUndo) return;
-
-    // Save current state to redo stack
-    redoStack.add(_createSnapshot());
-
-    // Restore previous state from undo stack
-    final previousState = undoStack.removeLast();
-    _restoreFromSnapshot(previousState);
-
-    setState(() {});
-  }
-
-  // Redo changes
-  void _redoChanges() {
-    if (!_canRedo) return;
-
-    // Save current state to undo stack
-    undoStack.add(_createSnapshot());
-
-    // Restore next state from redo stack
-    final nextState = redoStack.removeLast();
-    _restoreFromSnapshot(nextState);
-
-    setState(() {});
-  }
+  // Removed undo and redo functions as buttons are being removed
+  // void _undoChanges() {
+  //   if (!_canUndo) return;
+  //
+  //   // Save current state to redo stack
+  //   redoStack.add(_createSnapshot());
+  //
+  //   // Restore previous state from undo stack
+  //   final previousState = undoStack.removeLast();
+  //   _restoreFromSnapshot(previousState);
+  //
+  //   setState(() {});
+  // }
+  //
+  // void _redoChanges() {
+  //   if (!_canRedo) return;
+  //
+  //   // Save current state to undo stack
+  //   undoStack.add(_createSnapshot());
+  //
+  //   // Restore next state from redo stack
+  //   final nextState = redoStack.removeLast();
+  //   _restoreFromSnapshot(nextState);
+  //
+  //   setState(() {});
+  // }
 
   // Save all changes
   void _saveAllChanges() async {
@@ -685,8 +741,8 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
       selectedBracketNames.clear();
       _originalNames.clear();
       _originalWifiNames.clear();
-      undoStack.clear();
-      redoStack.clear();
+      // undoStack.clear();
+      // redoStack.clear();
     });
   }
 
@@ -1128,82 +1184,6 @@ class _CircuitBreakerListState extends State<CircuitBreakerList> {
                         onPressed: () {
                           _cancelEditMode();
                         },
-                      ),
-                    ),
-
-                    // Undo Button
-                    Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.25),
-                            offset: Offset(0, 4), // x, y offset
-                            blurRadius: 2,
-                            spreadRadius: 0,
-                          ),
-                        ],
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                      child: ElevatedButton(
-                        style: ButtonStyle(
-                          padding: MaterialStateProperty.all<EdgeInsets>(
-                            EdgeInsets.zero,
-                          ),
-                          foregroundColor: MaterialStateProperty.all<Color>(
-                            Colors.black,
-                          ),
-                          backgroundColor: MaterialStateProperty.all<Color>(
-                            Colors.white,
-                          ),
-                          shape:
-                              MaterialStateProperty.all<RoundedRectangleBorder>(
-                            RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(50),
-                            ),
-                          ),
-                        ),
-                        child: Icon(Icons.undo, size: 20),
-                        onPressed: _canUndo ? _undoChanges : null,
-                      ),
-                    ),
-
-                    // Redo Button
-                    Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.25),
-                            offset: Offset(0, 4), // x, y offset
-                            blurRadius: 2,
-                            spreadRadius: 0,
-                          ),
-                        ],
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                      child: ElevatedButton(
-                        style: ButtonStyle(
-                          padding: MaterialStateProperty.all<EdgeInsets>(
-                            EdgeInsets.zero,
-                          ),
-                          foregroundColor: MaterialStateProperty.all<Color>(
-                            Colors.black,
-                          ),
-                          backgroundColor: MaterialStateProperty.all<Color>(
-                            Colors.white,
-                          ),
-                          shape:
-                              MaterialStateProperty.all<RoundedRectangleBorder>(
-                            RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(50),
-                            ),
-                          ),
-                        ),
-                        child: Icon(Icons.redo, size: 20),
-                        onPressed: _canRedo ? _redoChanges : null,
                       ),
                     ),
 

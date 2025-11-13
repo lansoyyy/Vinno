@@ -49,16 +49,39 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
             await FirebaseAuthService().getUserData(currentUser!.uid);
         if (currentUser != null) {
           adminId = currentUser!.uid;
+
+          // Get the ultimate owner ID - for Staff created by Admin, we need to trace back to the Owner
+          String ultimateOwnerId = userData!['createdBy'];
+          if (userData['accountType'] == 'Staff' ||
+              userData['accountType'] == 'Admin') {
+            // For Staff or Admin users, get the creator's data to find the ultimate owner
+            DocumentSnapshot? creatorData =
+                await _authService.getUserData(userData['createdBy']);
+            if (creatorData != null && creatorData.exists) {
+              Map<String, dynamic> creatorInfo =
+                  creatorData.data() as Map<String, dynamic>;
+
+              // If the creator is an Admin, get their creator (the Owner)
+              if (creatorInfo['accountType'] == 'Admin') {
+                ultimateOwnerId = creatorInfo['createdBy'];
+              }
+              // If the creator is already the Owner, use their ID
+              else if (creatorInfo['accountType'] == 'Owner') {
+                ultimateOwnerId = creatorInfo['uid'];
+              }
+            }
+          }
+
           // Get owner data
           DocumentSnapshot? ownerDoc =
-              await _authService.getUserData(userData!['createdBy']);
+              await _authService.getUserData(ultimateOwnerId);
           if (ownerDoc != null && ownerDoc.exists) {
             ownerData = ownerDoc.data() as Map<String, dynamic>;
           }
 
           // Get only active admins created by the same owner
           QuerySnapshot adminSnapshot =
-              await _authService.getAdmins(userData!['createdBy']);
+              await _authService.getAdmins(ultimateOwnerId);
           adminList = adminSnapshot.docs
               .map((doc) =>
                   {'id': doc.id, ...doc.data() as Map<String, dynamic>})
@@ -67,7 +90,7 @@ class _ConnectedDevicesState extends State<ConnectedDevices> {
 
           // Get only active staff created by the same owner
           QuerySnapshot staffSnapshot =
-              await _authService.getStaff(userData!['createdBy']);
+              await _authService.getStaff(ultimateOwnerId);
           staffList = staffSnapshot.docs
               .map((doc) =>
                   {'id': doc.id, ...doc.data() as Map<String, dynamic>})

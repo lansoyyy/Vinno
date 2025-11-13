@@ -131,20 +131,8 @@ class _PinLocationScreenState extends State<PinLocationScreen> {
         return;
       }
 
-      // Get user document to determine account type
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('owners')
-          .doc(currentUser.uid)
-          .get();
-
-      if (!userDoc.exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User data not found')),
-        );
-        return;
-      }
-
-      String accountType = userDoc.get('accountType') ?? 'Owner';
+      // Get account type from local storage
+      String accountType = box.read('accountType') ?? 'Owner';
       String collectionName;
 
       // Determine which collection to update based on account type
@@ -159,6 +147,19 @@ class _PinLocationScreenState extends State<PinLocationScreen> {
         default:
           collectionName = 'owners';
           break;
+      }
+
+      // Get user document from the appropriate collection
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection(collectionName)
+          .doc(currentUser.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User data not found')),
+        );
+        return;
       }
       box.write('hasPinned', true);
       box.write(

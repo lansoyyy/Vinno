@@ -55,7 +55,27 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
             // Store createdBy for Admin/Staff users to access correct circuit breakers
             if (accountType != 'Owner' && data.containsKey('createdBy')) {
-              box.write('createdBy', data['createdBy']);
+              // For Staff users created by Admin, we need to trace back to the ultimate owner
+              String ultimateOwnerId = data['createdBy'];
+              if (accountType == 'Staff' || accountType == 'Admin') {
+                // Get the creator's data to find the ultimate owner
+                DocumentSnapshot? creatorData =
+                    await _authService.getUserData(data['createdBy']);
+                if (creatorData != null && creatorData.exists) {
+                  Map<String, dynamic> creatorInfo =
+                      creatorData.data() as Map<String, dynamic>;
+
+                  // If the creator is an Admin, get their creator (the Owner)
+                  if (creatorInfo['accountType'] == 'Admin') {
+                    ultimateOwnerId = creatorInfo['createdBy'];
+                  }
+                  // If the creator is already the Owner, use their ID
+                  else if (creatorInfo['accountType'] == 'Owner') {
+                    ultimateOwnerId = creatorInfo['uid'];
+                  }
+                }
+              }
+              box.write('createdBy', ultimateOwnerId);
             }
 
             setState(() {

@@ -91,6 +91,24 @@ class StatisticsService {
       String breakerId, String period,
       {String metric = 'energy'}) async {
     try {
+      // First, get the circuit breaker creation date to filter data properly
+      final breakerSnapshot =
+          await _dbRef.child('circuitBreakers').child(breakerId).get();
+      DateTime? breakerCreationDate;
+
+      if (breakerSnapshot.exists) {
+        final breakerData =
+            Map<String, dynamic>.from(breakerSnapshot.value as Map);
+        // Try to get creation date from timestamp or use a default
+        if (breakerData.containsKey('createdAt')) {
+          breakerCreationDate = DateTime.fromMillisecondsSinceEpoch(
+              breakerData['createdAt'] * 1000);
+        } else if (breakerData.containsKey('timestamp')) {
+          breakerCreationDate = DateTime.fromMillisecondsSinceEpoch(
+              breakerData['timestamp'] * 1000);
+        }
+      }
+
       // First try to get data from new structure (voltage/CB-LIVING-002/)
       final snapshot = await _dbRef.child(metric).child(breakerId).get();
 
@@ -132,6 +150,12 @@ class StatisticsService {
                 DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
             final value = (entry.value[metric] as num).toDouble();
 
+            // Skip data before breaker creation date
+            if (breakerCreationDate != null &&
+                dateTime.isBefore(breakerCreationDate)) {
+              continue;
+            }
+
             // Determine which period this data point belongs to
             String? labelForData =
                 _getLabelForTimestamp(dateTime, period, labels, now);
@@ -149,7 +173,7 @@ class StatisticsService {
             double sum = groupedData[label]!.reduce((a, b) => a + b);
             result[label] = sum / groupedData[label]!.length;
           } else {
-            // If no data for this period, use 0 or interpolate
+            // If no data for this period, use 0 (not mock data)
             result[label] = 0.0;
           }
         }
@@ -168,32 +192,15 @@ class StatisticsService {
         return Map<String, dynamic>.from(historicalSnapshot.value as Map);
       }
 
-      // If no historical data exists, use current readings from circuit breaker
-      final breakerSnapshot =
-          await _dbRef.child('circuitBreakers').child(breakerId).get();
+      // If no historical data exists, return empty data (no mock data)
+      final labels = _getDynamicPeriodLabels(period);
+      Map<String, dynamic> data = {};
 
-      if (breakerSnapshot.exists) {
-        final breakerData =
-            Map<String, dynamic>.from(breakerSnapshot.value as Map);
-        final labels = _getDynamicPeriodLabels(period);
-        Map<String, dynamic> data = {};
-
-        // Use current values for all periods as a fallback
-        // Add some variation to make the data more realistic
-        final random = Random();
-        for (String label in labels) {
-          // Add some variation to the current values (±10%)
-          double variation = 0.9 + random.nextDouble() * 0.2;
-
-          // Use the specified metric
-          double value = (breakerData[metric] ?? 0).toDouble() * variation;
-          data[label] = value;
-        }
-
-        return data;
+      for (String label in labels) {
+        data[label] = 0.0;
       }
 
-      return _generateMockData(period);
+      return data;
     } catch (e) {
       print('Error fetching historical data: $e');
       return _generateMockData(period);
@@ -575,8 +582,16 @@ class StatisticsService {
     final now = DateTime.now();
     switch (period) {
       case 'day':
-        // Show days of week: Mon, Tue, Wed... (3 letters only)
-        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        // Show days of the current week: Mon, Tue, Wed... (current week only)
+        List<String> daysOfWeek = [];
+        // Find the start of the current week (Monday)
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+
+        for (int i = 0; i < 7; i++) {
+          final day = startOfWeek.add(Duration(days: i));
+          daysOfWeek.add(_getDayName(day.weekday));
+        }
+        return daysOfWeek;
       case 'week':
         // Generate week ranges for the last 4 weeks: Oct 7 - Nov 2, Nov 3–9, Nov 10–16...
         List<String> weekRanges = [];
@@ -665,9 +680,18 @@ class StatisticsService {
       DateTime dateTime, String period, List<String> labels, DateTime now) {
     switch (period) {
       case 'day':
-        // Group by day names (Mon, Tue, Wed...)
+        // Group by day names (Mon, Tue, Wed...) - only for current week
         final dayName = _getDayName(dateTime.weekday);
-        return labels.contains(dayName) ? dayName : null;
+
+        // Check if the date is within the current week
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        final endOfWeek = startOfWeek.add(Duration(days: 6));
+
+        if (dateTime.isAfter(startOfWeek.subtract(Duration(days: 1))) &&
+            dateTime.isBefore(endOfWeek.add(Duration(days: 1)))) {
+          return labels.contains(dayName) ? dayName : null;
+        }
+        return null;
 
       case 'week':
         // Group by week ranges (Oct 29-Nov 4, Nov 5-11, etc.)
@@ -731,7 +755,7 @@ class StatisticsService {
         return null;
 
       case 'month':
-        // Group by month names (Jan, Feb...)
+        // Group by month names (Jan, Feb...) - only last 6 months
         const months = [
           'Jan',
           'Feb',
@@ -746,14 +770,23 @@ class StatisticsService {
           'Nov',
           'Dec'
         ];
-        if (dateTime.month >= 1 && dateTime.month <= 12) {
+
+        // Check if the date is within the last 6 months
+        final sixMonthsAgo = DateTime(now.year, now.month - 5, 1);
+        if (dateTime.isAfter(sixMonthsAgo.subtract(Duration(days: 1))) &&
+            dateTime.month >= 1 &&
+            dateTime.month <= 12) {
           return months[dateTime.month - 1];
         }
         return null;
 
       case 'year':
-        // Group by year (2022, 2023...)
-        return '${dateTime.year}';
+        // Group by year (2022, 2023...) - only last 4 years
+        final fourYearsAgo = now.year - 3;
+        if (dateTime.year >= fourYearsAgo) {
+          return '${dateTime.year}';
+        }
+        return null;
 
       default:
         return null;
@@ -782,12 +815,10 @@ class StatisticsService {
   // Generate mock data (fallback when Firebase data is not available)
   Map<String, dynamic> _generateMockData(String period) {
     final labels = _getDynamicPeriodLabels(period);
-    final random = Random();
     Map<String, dynamic> mockData = {};
 
     for (String label in labels) {
-      mockData[label] =
-          10.0 + random.nextDouble() * 40.0; // Random values between 10-50
+      mockData[label] = 0.0; // Return 0 instead of mock data
     }
 
     return mockData;

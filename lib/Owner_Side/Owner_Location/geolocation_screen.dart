@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -7,7 +6,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:smart_cb_1/Owner_Side/Owner_Location/pin_location_screen.dart';
 import 'package:smart_cb_1/util/const.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -30,8 +28,6 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
   // Selected marker info
   String? _selectedMarkerId;
   bool _showMarkerDetails = false;
-  String? _selectedUserAddress;
-  bool _isLoadingAddress = false;
 
   // Real user data from Firebase
   List<Map<String, dynamic>> _users = [];
@@ -47,15 +43,6 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
   void initState() {
     super.initState();
     _initializeScreen();
-  }
-
-  String random() {
-    final random = Random();
-    double min = 5.0;
-    double max = 12.0;
-
-    double value = min + (max - min) * random.nextDouble();
-    return value.toStringAsFixed(1);
   }
 
   Future<void> _initializeScreen() async {
@@ -362,86 +349,12 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
     });
   }
 
-  void _onMarkerTapped(String markerId) async {
-    setState(() {
-      _selectedMarkerId = markerId;
-      _showMarkerDetails = true;
-      _isLoadingAddress = true;
-      _selectedUserAddress = null;
-    });
-
-    // Get address from coordinates
-    final user = _users.firstWhere(
-      (u) => u['id'] == markerId,
-      orElse: () => {},
-    );
-
-    if (user.isNotEmpty) {
-      try {
-        List<Placemark> placemarks = await placemarkFromCoordinates(
-          user['latitude'],
-          user['longitude'],
-        );
-
-        if (placemarks.isNotEmpty) {
-          Placemark place = placemarks[0];
-          String address = '';
-
-          if (place.street != null && place.street!.isNotEmpty) {
-            address += place.street!;
-          }
-          if (place.locality != null && place.locality!.isNotEmpty) {
-            if (address.isNotEmpty) address += ', ';
-            address += place.locality!;
-          }
-          if (place.administrativeArea != null &&
-              place.administrativeArea!.isNotEmpty) {
-            if (address.isNotEmpty) address += ', ';
-            address += place.administrativeArea!;
-          }
-          if (place.country != null && place.country!.isNotEmpty) {
-            if (address.isNotEmpty) address += ', ';
-            address += place.country!;
-          }
-
-          setState(() {
-            _selectedUserAddress =
-                address.isNotEmpty ? address : 'Address not available';
-            _isLoadingAddress = false;
-          });
-        } else {
-          setState(() {
-            _selectedUserAddress =
-                '${user['latitude'].toStringAsFixed(6)}, ${user['longitude'].toStringAsFixed(6)}';
-            _isLoadingAddress = false;
-          });
-        }
-      } catch (e) {
-        print('Error getting address: $e');
-        setState(() {
-          _selectedUserAddress =
-              '${user['latitude'].toStringAsFixed(6)}, ${user['longitude'].toStringAsFixed(6)}';
-          _isLoadingAddress = false;
-        });
-      }
-    }
-  }
-
   String selectedMobile = '';
   Map<String, dynamic>? _getSelectedUser() {
     if (_selectedMarkerId == null) return null;
     return _users.firstWhere(
       (user) => user['id'] == _selectedMarkerId,
       orElse: () => {},
-    );
-  }
-
-  double _calculateDistance(LatLng point1, LatLng point2) {
-    return Geolocator.distanceBetween(
-      point1.latitude,
-      point1.longitude,
-      point2.latitude,
-      point2.longitude,
     );
   }
 
@@ -808,80 +721,6 @@ class _GeolocationScreenState extends State<GeolocationScreen> {
                                     _selectedMarkerId = null;
                                   });
                                 },
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          // Distance info (empty for now as requested)
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.social_distance,
-                                color: Colors.red.shade400,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Distance from the CB:',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Builder(builder: (context) {
-                                return Text(
-                                  '${random()} meters',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                );
-                              }),
-                            ],
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          // Location info with address
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                Icons.location_on,
-                                color: Colors.green.shade600,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Location:',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _isLoadingAddress
-                                    ? const SizedBox(
-                                        height: 16,
-                                        width: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : Text(
-                                        _selectedUserAddress ??
-                                            'Address not available',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
                               ),
                             ],
                           ),
