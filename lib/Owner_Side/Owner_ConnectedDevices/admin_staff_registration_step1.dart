@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:smart_cb_1/services/firebase_auth_service.dart';
+import 'package:smart_cb_1/util/const.dart';
 
 class AdminStaffRegistrationStep1 extends StatefulWidget {
   final String accountType; // 'Admin' or 'Staff'
@@ -36,7 +37,7 @@ class _AdminStaffRegistrationStep1State
     super.dispose();
   }
 
-  void _onNext() {
+  Future<void> _onNext() async {
     String name = nameController.text.trim();
     String age = ageController.text.trim();
     String address = addressController.text.trim();
@@ -77,10 +78,23 @@ class _AdminStaffRegistrationStep1State
       _showMessage("Owner not authenticated. Please log in again.");
       return;
     }
+    DocumentSnapshot? userData =
+        await _authService.getUserData(currentUser.uid);
+    if (userData != null && userData.exists) {
+      Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
+      _showPasswordConfirmationDialog(
+          box.read('accountType') == 'Admin'
+              ? data['createdBy']
+              : currentUser.uid,
+          currentUser.email!,
+          name,
+          age,
+          address,
+          mobile,
+          birthday);
+    }
 
     // Show password confirmation dialog
-    _showPasswordConfirmationDialog(currentUser.uid, currentUser.email!, name,
-        age, address, mobile, birthday);
   }
 
   void _showPasswordConfirmationDialog(
@@ -191,6 +205,8 @@ class _AdminStaffRegistrationStep1State
                   // Prepare navigation arguments
                   Map<String, dynamic> navigationArgs;
 
+                  print(widget.accountType);
+
                   if (widget.accountType == 'Admin') {
                     DocumentSnapshot? userData =
                         await _authService.getUserData(currentUser.uid);
@@ -224,6 +240,7 @@ class _AdminStaffRegistrationStep1State
                       };
                     }
                   } else {
+                    print(ownerId);
                     navigationArgs = {
                       'accountType': widget.accountType,
                       'name': name,
