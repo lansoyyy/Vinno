@@ -11,7 +11,39 @@ class PowerDay extends StatelessWidget {
     final barGroups = <BarChartGroupData>[];
     int index = 0;
 
-    // Use all the data since we now have proper day labels (Mon, Tue, Wed...)
+    // Handle empty data case
+    if (dailyData.isEmpty) {
+      return Scaffold(
+        backgroundColor: Color(0xFFF6F6F6),
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          title: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 0),
+            child: const Text(
+              'Power (W)',
+              style: TextStyle(
+                fontSize: 20,
+                color: Color(0xFF176639),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          automaticallyImplyLeading: false,
+        ),
+        body: Center(
+          child: Text(
+            'No data available for selected period',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Use all data since we now have proper day labels (Mon, Tue, Wed...)
     final limitedData = dailyData;
 
     final values = dailyData.values.toList();
